@@ -73,17 +73,17 @@ const PredictionResult: React.FC<PredictionResultProps> = ({ data }) => {
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="body1" fontWeight="medium">
-                    {row.orderAmount.toLocaleString()}
+                    {(row.orderAmount ?? 0).toLocaleString()}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="body1" fontWeight="medium">
-                    {row.consumedAmount.toLocaleString()}
+                    {(row.consumedAmount ?? 0).toLocaleString()}
                   </Typography>
                 </TableCell>
                 <TableCell align="right">
                   <Typography variant="body1" fontWeight="medium">
-                    {row.remainingAmount.toLocaleString()}
+                    {(row.remainingAmount ?? 0).toLocaleString()}
                   </Typography>
                 </TableCell>
                 <TableCell>
