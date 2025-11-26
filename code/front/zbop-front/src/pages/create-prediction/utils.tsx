@@ -13,20 +13,25 @@ type ApiPredictionResponse = {
 // Function to make API call for predictions
 export async function getPredictionData(formData: FormValues): Promise<PredictionData[]> {
   try {
-    // Prepare request payload matching the API schema
+    // Prepare request payload matching the v2 API schema
     const requestBody = {
-      max_capacity: Number(formData.maxCoffeeMagazineCapacity) || 0,
-      conferences_per_week: Number(formData.conferencesPerWeek) || 0,
-      normal_workers_daily: Number(formData.normalWorkersDaily) || 0
+      storage_capacity_kg: Number(formData.storageCapacityKg) || 150,
+      purchase_costs_pln_per_kg_daily: formData.purchaseCostsDaily,
+      transport_cost_pln: Number(formData.transportCostPln) || 100,
+      num_conferences_daily: formData.numConferencesDaily,
+      num_workers_daily: formData.numWorkersDaily,
+      initial_inventory_kg: Number(formData.initialInventoryKg) || 40,
+      daily_loss_fraction: Number(formData.dailyLossFraction) || 0.1,
+      planning_horizon_days: formData.planningHorizonDays
     };
 
     // Validate that we have valid numbers
-    if (requestBody.max_capacity <= 0 || requestBody.conferences_per_week < 0 || requestBody.normal_workers_daily <= 0) {
-      throw new Error('Please provide valid positive numbers for all fields');
+    if (requestBody.planning_horizon_days <= 0) {
+      throw new Error('Please provide valid planning horizon');
     }
 
-    // Make API call to backend
-    const response = await fetch(`http://localhost:8000/create_predictions`, {
+    // Make API call to backend v2 endpoint
+    const response = await fetch(`http://localhost:8000/create_predictions_v2`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -40,16 +45,13 @@ export async function getPredictionData(formData: FormValues): Promise<Predictio
 
     const apiData: ApiPredictionResponse = await response.json();
 
-    // Day names mapping
-    const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-
     // Transform API response to match our frontend data structure
     return apiData.map((item) => ({
-      day: dayNames[item.day - 1] || `Day ${item.day}`,
+      day: `Day ${item.day}`,
       orderAmount: typeof item.orderAmount === 'number' ? item.orderAmount : 0,
       consumedAmount: typeof item.consumedAmount === 'number' ? item.consumedAmount : 0,
       remainingAmount: typeof item.remainingAmount === 'number' ? item.remainingAmount : 0,
-      unit: item.unit || 'grams'
+      unit: item.unit || 'kg'
     }));
 
   } catch (error) {

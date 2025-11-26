@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Box, Container, Typography, Divider } from '@mui/material';
+import { Box, Typography, Divider } from '@mui/material';
 import Form, { FormValues } from '../../components/form/Form';
 import PredictionResult, { PredictionData } from '../../components/predictionResults/PredictionResult';
 import { messages } from '../../components/form/messages';
@@ -11,6 +11,7 @@ import { getPredictionData } from './utils';
 
 const CreatePrediction: React.FC = () => {
   const [predictionData, setPredictionData] = useState<PredictionData[] | null>(null);
+  const [inputData, setInputData] = useState<FormValues | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleFormSubmit = async (values: FormValues) => {
@@ -18,6 +19,7 @@ const CreatePrediction: React.FC = () => {
     try {
       const predictions = await getPredictionData(values);
       setPredictionData(predictions);
+      setInputData(values);
     } catch (error) {
       console.error('Error generating predictions:', error);
       // In a real app, you would show an error message to the user
@@ -27,7 +29,8 @@ const CreatePrediction: React.FC = () => {
   };
 
   return (
-    <Container maxWidth="lg" className="create-prediction-page">
+    <Box sx={{ width: '100%', maxWidth: '2400px', margin: '0 auto', px: { xs: 2, sm: 3, md: 4 } }}>
+      <Box className="create-prediction-page">
       <Box className="page-header">
         <Typography variant="h3" component="h1" gutterBottom>
           {messages.createPrediction.title}
@@ -49,8 +52,15 @@ const CreatePrediction: React.FC = () => {
               <Box className="loading-state">
                 <CircularProgress />
               </Box>
-            ) : predictionData && predictionData.length > 0 ? (
-              <PredictionResult data={predictionData} />
+            ) : predictionData && predictionData.length > 0 && inputData ? (
+              <PredictionResult 
+                data={predictionData}
+                demandData={inputData.numConferencesDaily.map((conf, i) => 
+                  conf * 0.5 + inputData.numWorkersDaily[i] * 0.025
+                )}
+                purchaseCosts={inputData.purchaseCostsDaily}
+                transportCost={Number(inputData.transportCostPln) || 0}
+              />
             ) : (
               <Typography variant="body1" color="text.secondary">
                 {messages.predictionResult.noResults}
@@ -59,7 +69,8 @@ const CreatePrediction: React.FC = () => {
           </Box>
         </>
       )}
-    </Container>
+      </Box>
+    </Box>
   );
 };
 
