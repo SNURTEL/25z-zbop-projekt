@@ -1,55 +1,60 @@
-from typing import List, TypedDict, NamedTuple
-import random
 import json
+import random
+from typing import NamedTuple, TypedDict
+
+from docplex.mp.model import Model  # type: ignore[import-untyped]
 from fastapi import logger
 
-from api_models import DayPrediction, PredictionRequest2, DayPredictionV2
-from docplex.mp.model import Model  # type: ignore[import-untyped]
+from api_models import DayPrediction, DayPredictionV2, PredictionRequest2
 
 
-def generate_mock_predictions(max_capacity: int, conferences_per_week: int, normal_workers_daily: int) -> list[DayPrediction]:
+def generate_mock_predictions(
+    max_capacity: int, conferences_per_week: int, normal_workers_daily: int
+) -> list[DayPrediction]:
     """
     Mock function to generate coffee consumption predictions for 7 days.
     This should be replaced with actual prediction logic later.
     """
     predictions = []
     cumulative_remaining = max_capacity
-    
+
     # Basic mock logic - adjust consumption based on parameters
     base_consumption_per_worker = 25  # grams per worker per day
     conference_multiplier = 1.5 if conferences_per_week > 3 else 1.2
-    
+
     for day in range(1, 8):  # 7 days
         # Mock daily consumption calculation
         daily_consumption = int(normal_workers_daily * base_consumption_per_worker)
-        
+
         # Add some randomness and conference effect
         if day <= conferences_per_week:
             daily_consumption = int(daily_consumption * conference_multiplier)
-        
+
         # Add some random variation (±20%)
         variation = random.uniform(0.8, 1.2)
         daily_consumption = int(daily_consumption * variation)
-        
+
         # Mock order amount (refill when running low)
         order_amount = 0
         if cumulative_remaining < max_capacity * 0.3:  # Refill when below 30%
             order_amount = max_capacity
             cumulative_remaining += order_amount
-        
+
         # Calculate remaining amount
         cumulative_remaining = max(0, cumulative_remaining - daily_consumption)
-        
-        predictions.append(DayPrediction(
-            day=day,
-            orderAmount=order_amount,
-            consumedAmount=daily_consumption,
-            remainingAmount=cumulative_remaining,
-            unit="grams"
-        ))
-    
+
+        predictions.append(
+            DayPrediction(
+                day=day,
+                orderAmount=order_amount,
+                consumedAmount=daily_consumption,
+                remainingAmount=cumulative_remaining,
+                unit="grams",
+            )
+        )
+
     logger.logger.info("Generated mock predictions: %s", predictions)
-    
+
     return predictions
 
 
@@ -65,6 +70,7 @@ class SolverInput(NamedTuple):
     - M — big-M constant for linking x_t <= M * y_t
     - T — planning horizon (number of days), default 7
     """
+
     V_max: float
     P: list[float]
     C: float
@@ -74,6 +80,7 @@ class SolverInput(NamedTuple):
     M: float = 1e5
     T: int = 7
 
+
 class SolverOutput(TypedDict):
     """Decision variables (solution) for the planning horizon T.
 
@@ -82,8 +89,9 @@ class SolverOutput(TypedDict):
     - y — binary order indicators for each day t (0/1)
     - objective_value — objective function value for the solution
     """
+
     x: list[float]
-    I: list[float]
+    I: list[float]  # noqa: E741
     y: list[int]
     objective_value: float
 
@@ -104,7 +112,7 @@ def solve(inp: SolverInput) -> SolverOutput:
 
     # decision variables indexed 0..T-1
     x = m.continuous_var_list(T, lb=0.0, name="x")
-    I = m.continuous_var_list(T, lb=0.0, name="I")
+    I = m.continuous_var_list(T, lb=0.0, name="I")  # noqa: E741
     y = m.binary_var_list(T, name="y")
 
     # minimize sum(P_t * x_t + C * y_t)
@@ -137,12 +145,14 @@ def solve(inp: SolverInput) -> SolverOutput:
 
     return SolverOutput(x=x_vals, I=I_vals, y=y_vals, objective_value=obj)
 
+
 def estimate_demand(num_workers: int, num_conferences: int) -> float:
     # dummy demand estimation logic
     base_demand_per_worker_kg = 0.25  # kg per worker per day
-    conference_multiplier = 1.2 ** num_conferences
+    conference_multiplier = 1.2**num_conferences
     estimated_demand = num_workers * base_demand_per_worker_kg * conference_multiplier
     return estimated_demand
+
 
 def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPredictionV2]:
     """Generate coffee consumption predictions using the solver.
@@ -166,7 +176,7 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
         D=demand_estimates,
         I0=prediction_request.initial_inventory_kg,
         alpha=prediction_request.daily_loss_fraction,
-        T=T
+        T=T,
     )
 
     try:
@@ -182,13 +192,15 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
         order_amount = solver_output["x"][day]
         consumed_amount = demand_estimates[day]
 
-        predictions.append(DayPredictionV2(
-            day=day + 1,
-            orderAmount=round(order_amount, 2),
-            consumedAmount=round(consumed_amount, 2),
-            remainingAmount=round(solver_output["I"][day], 2),
-            unit="kg"
-        ))
+        predictions.append(
+            DayPredictionV2(
+                day=day + 1,
+                orderAmount=round(order_amount, 2),
+                consumedAmount=round(consumed_amount, 2),
+                remainingAmount=round(solver_output["I"][day], 2),
+                unit="kg",
+            )
+        )
 
     logger.logger.info("Generated predictions: %s", predictions)
 
