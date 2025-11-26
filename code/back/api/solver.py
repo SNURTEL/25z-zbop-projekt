@@ -1,6 +1,6 @@
 import json
 import random
-from typing import NamedTuple, TypedDict
+from typing import NamedTuple
 
 from docplex.mp.model import Model  # type: ignore[import-untyped]
 from fastapi import logger
@@ -81,7 +81,7 @@ class SolverInput(NamedTuple):
     T: int = 7
 
 
-class SolverOutput(TypedDict):
+class SolverOutput(NamedTuple):
     """Decision variables (solution) for the planning horizon T.
 
     - x — amount ordered each day t (kg)
@@ -181,7 +181,7 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
 
     try:
         solver_output = solve(solver_input)
-        logger.logger.warning("Solver output: %s", json.dumps(solver_output, indent=4))
+        logger.logger.warning("Solver output: %s", json.dumps(solver_output._asdict(), indent=4))
     except SolverFail as e:
         logger.logger.error("Solver failed: %s", e)
         raise
@@ -189,7 +189,7 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
     predictions = []
 
     for day in range(T):
-        order_amount = solver_output["x"][day]
+        order_amount = solver_output.x[day]
         consumed_amount = demand_estimates[day]
 
         predictions.append(
@@ -197,7 +197,7 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
                 day=day + 1,
                 orderAmount=round(order_amount, 2),
                 consumedAmount=round(consumed_amount, 2),
-                remainingAmount=round(solver_output["I"][day], 2),
+                remainingAmount=round(solver_output.I[day], 2),
                 unit="kg",
             )
         )
