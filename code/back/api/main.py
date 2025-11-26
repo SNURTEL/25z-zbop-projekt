@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from typing import List
-from api_models import PredictionRequest, DayPrediction
-from solver import generate_mock_predictions
+from api_models import PredictionRequest, DayPrediction, PredictionRequest2, DayPredictionV2
+from solver import generate_mock_predictions, generate_predictions
 from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
@@ -41,6 +41,11 @@ async def create_predictions(request: PredictionRequest):
         normal_workers_daily=request.normal_workers_daily
     )
     
+    return predictions
+
+@app.post("/create_predictions_v2")
+async def create_predictions_v2(request: PredictionRequest2) -> list[DayPredictionV2]:
+    predictions = generate_predictions(request)
     return predictions
 
 if __name__ == "__main__":

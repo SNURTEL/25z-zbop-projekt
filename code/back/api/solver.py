@@ -3,8 +3,8 @@ import random
 
 from fastapi import logger
 
-from api_models import DayPrediction
-from docplex.mp.model import Model
+from api_models import DayPrediction, PredictionRequest2, DayPredictionV2
+from docplex.mp.model import Model  # type: ignore[import-untyped]
 
 
 def generate_mock_predictions(max_capacity: int, conferences_per_week: int, normal_workers_daily: int) -> list[DayPrediction]:
@@ -136,3 +136,61 @@ def solve(inp: SolverInput) -> SolverOutput:
     obj = float(m.objective_value)
 
     return SolverOutput(x=x_vals, I=I_vals, y=y_vals, objective_value=obj)
+
+def estimate_demand(num_workers: int, num_conferences: int) -> float:
+    # dummy demand estimation logic
+    base_demand_per_worker_kg = 0.25  # kg per worker per day
+    conference_multiplier = 1.2 ** num_conferences
+    estimated_demand = num_workers * base_demand_per_worker_kg * conference_multiplier
+    return estimated_demand
+
+def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPredictionV2]:
+    """Generate coffee consumption predictions using the solver.
+
+    Args:
+        prediction_request: PredictionRequest2 containing model parameters.
+
+    Returns:
+        List of DayPrediction with consumption, orders, and remaining amounts.
+    """
+    T = prediction_request.planning_horizon_days
+    demand_estimates = [
+        estimate_demand(prediction_request.num_workers_daily[t], prediction_request.num_conferences_daily[t])
+        for t in range(T)
+    ]
+
+    solver_input = SolverInput(
+        V_max=prediction_request.storage_capacity_kg,
+        P=prediction_request.purchase_costs_pln_per_kg,
+        C=prediction_request.transport_cost_pln,
+        D=demand_estimates,
+        I0=prediction_request.initial_inventory_kg,
+        alpha=prediction_request.daily_loss_fraction,
+        T=T
+    )
+
+    try:
+        solver_output = solve(solver_input)
+    except SolverFail as e:
+        logger.logger.error("Solver failed: %s", e)
+        raise
+
+    predictions = []
+    cumulative_remaining = prediction_request.initial_inventory_kg
+
+    for day in range(T):
+        order_amount = solver_output.x[day]
+        consumed_amount = demand_estimates[day]
+        cumulative_remaining += order_amount - consumed_amount
+
+        predictions.append(DayPredictionV2(
+            day=day + 1,
+            orderAmount=round(order_amount, 2),
+            consumedAmount=round(consumed_amount, 2),
+            remainingAmount=max(0, round(cumulative_remaining, 2)),
+            unit="kg"
+        ))
+
+    logger.logger.info("Generated predictions: %s", predictions)
+
+    return predictions
