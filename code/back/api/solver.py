@@ -1,6 +1,6 @@
-from typing import List, NamedTuple
+from typing import List, TypedDict, NamedTuple
 import random
-
+import json
 from fastapi import logger
 
 from api_models import DayPrediction, PredictionRequest2, DayPredictionV2
@@ -74,7 +74,7 @@ class SolverInput(NamedTuple):
     M: float = 1e5
     T: int = 7
 
-class SolverOutput(NamedTuple):
+class SolverOutput(TypedDict):
     """Decision variables (solution) for the planning horizon T.
 
     - x — amount ordered each day t (kg)
@@ -171,23 +171,22 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
 
     try:
         solver_output = solve(solver_input)
+        logger.logger.warning("Solver output: %s", json.dumps(solver_output, indent=4))
     except SolverFail as e:
         logger.logger.error("Solver failed: %s", e)
         raise
 
     predictions = []
-    cumulative_remaining = prediction_request.initial_inventory_kg
 
     for day in range(T):
-        order_amount = solver_output.x[day]
+        order_amount = solver_output["x"][day]
         consumed_amount = demand_estimates[day]
-        cumulative_remaining += order_amount - consumed_amount
 
         predictions.append(DayPredictionV2(
             day=day + 1,
             orderAmount=round(order_amount, 2),
             consumedAmount=round(consumed_amount, 2),
-            remainingAmount=max(0, round(cumulative_remaining, 2)),
+            remainingAmount=round(solver_output["I"][day], 2),
             unit="kg"
         ))
 
