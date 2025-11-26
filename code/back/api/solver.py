@@ -1,4 +1,4 @@
-from typing import Dict, List, NamedTuple
+from typing import List, NamedTuple
 import random
 
 from fastapi import logger
@@ -66,9 +66,9 @@ class SolverInput(NamedTuple):
     - T — planning horizon (number of days), default 7
     """
     V_max: float
-    P: List[float]
+    P: list[float]
     C: float
-    D: List[float]
+    D: list[float]
     I0: float
     alpha: float = 0.1
     M: float = 1e5
@@ -82,9 +82,9 @@ class SolverOutput(NamedTuple):
     - y — binary order indicators for each day t (0/1)
     - objective_value — objective function value for the solution
     """
-    x: List[float]
-    I: List[float]
-    y: List[int]
+    x: list[float]
+    I: list[float]
+    y: list[int]
     objective_value: float
 
 
@@ -92,48 +92,44 @@ class SolverFail(RuntimeError): ...
 
 
 def solve(inp: SolverInput) -> SolverOutput:
-    """Build and solve the inventory/ordering MIP using docplex.
+    """Build and solve the inventory/ordering MIP.
 
     Returns a `SolverOutput` with arrays of length T or raises SolverFail on error.
     """
-    # basic validation
     T = int(inp.T)
     if len(inp.P) != T or len(inp.D) != T:
         raise ValueError(f"Length of P and D must equal T={T}. Got len(P)={len(inp.P)}, len(D)={len(inp.D)}")
 
     m = Model(name="coffee_inventory")
 
-    # decision variables indexed 0..T-1 (maps to days 1..T)
+    # decision variables indexed 0..T-1
     x = m.continuous_var_list(T, lb=0.0, name="x")
     I = m.continuous_var_list(T, lb=0.0, name="I")
     y = m.binary_var_list(T, name="y")
 
-    # objective: minimize sum(P_t * x_t + C * y_t)
+    # minimize sum(P_t * x_t + C * y_t)
     m.minimize(m.sum(inp.P[t] * x[t] for t in range(T)) + inp.C * m.sum(y))
 
-    # inventory balance constraints
-    # I1 = (1-alpha) I0 + x1 - D1  -> index 0
+    # I1 = (1-alpha) I0 + x1 - D1
     m.add_constraint(I[0] == (1 - inp.alpha) * inp.I0 + x[0] - inp.D[0])
 
+    # It = (1-alpha) I(t-1) + x_t - D_t for t=2..T
     for t in range(1, T):
         m.add_constraint(I[t] == (1 - inp.alpha) * I[t - 1] + x[t] - inp.D[t])
 
-    # capacity constraints
+    # I_t <= V_max
     for t in range(T):
         m.add_constraint(I[t] <= inp.V_max)
 
-    # linking orders (big-M)
+    # x_t <= M * y_t
     for t in range(T):
         m.add_constraint(x[t] <= inp.M * y[t])
 
-    # solve
     sol = m.solve()
     if sol is None:
-        # try to provide solver feedback
         status = m.get_solve_status()
         raise SolverFail(f"Solver failed to return a solution. Status: {status}")
 
-    # extract solution values
     x_vals = [float(x[t].solution_value) for t in range(T)]
     I_vals = [float(I[t].solution_value) for t in range(T)]
     y_vals = [int(round(y[t].solution_value)) for t in range(T)]
