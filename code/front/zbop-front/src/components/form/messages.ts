@@ -1,12 +1,22 @@
 export const messages = {
   title: 'Coffie demand prediction',
   fields: {
-    maxCoffeeMagazineCapacity: 'Max capacity of coffee magazine',
-    conferencesPerWeek: 'Number of conferences per week',
-    normalWorkersDaily: 'Number of normal workers daily',
+    planningHorizonDays: 'Planning Horizon (Days)',
+    numConferencesDaily: 'Number of Conferences per Day',
+    numWorkersDaily: 'Number of Workers per Day',
+    purchaseCostsDaily: 'Purchase Costs (PLN per kg) per Day',
+    fillAllConferences: 'Fill all days with same value',
+    fillAllWorkers: 'Fill all days with same value',
+    fillAllCosts: 'Fill all days with same value',
+    storageCapacityKg: 'Storage Capacity (kg)',
+    transportCostPln: 'Transport Cost (PLN)',
+    initialInventoryKg: 'Initial Inventory (kg)',
+    dailyLossFraction: 'Daily Loss Fraction (0.0 to 1.0)',
+    advancedSettingsExpanded: 'Edit Constants (click to collapse)',
+    advancedSettingsCollapsed: 'Edit Constants (click to expand)',
   },
   actions: {
-    submit: 'Submit',
+    submit: 'Generate Predictions',
     reset: 'Reset',
   },
   validation: {
@@ -14,6 +24,9 @@ export const messages = {
     number: 'Please enter a valid number',
     integer: 'Please enter an integer value',
     nonNegative: 'Value must be non-negative',
+    positive: 'Value must be positive',
+    between0and1: 'Value must be between 0.0 and 1.0',
+    positiveFloat: 'Please enter a positive decimal number',
   },
   predictionResult: {
     title: 'Daily Coffee Order and Consumption Forecast',

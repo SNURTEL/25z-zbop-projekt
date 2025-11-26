@@ -1,10 +1,6 @@
-export type SubmitPayload = {
-  maxCoffeeMagazineCapacity: number;
-  conferencesPerWeek: number;
-  normalWorkersDaily: number;
-};
+import { FormValues } from './Form';
 
-export async function submitFormData(payload: SubmitPayload): Promise<void> {
+export async function submitFormData(payload: FormValues): Promise<void> {
   // TODO: Replace with real API call when backend is available
   // Example:
   // await fetch('/api/parameters', {

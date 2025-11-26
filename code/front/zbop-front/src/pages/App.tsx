@@ -10,7 +10,7 @@ function App() {
   return (
     <ThemeProvider theme={theme}>
       <BrowserRouter>
-        <Container maxWidth="md">
+        <Container maxWidth="xl">
           <Routes>
             <Route path="/" element={<CreatePrediction />} />
           </Routes>

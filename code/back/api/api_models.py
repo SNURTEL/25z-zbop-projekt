@@ -7,7 +7,7 @@ class PredictionRequest(BaseModel):
 
 class PredictionRequest2(BaseModel):
     storage_capacity_kg: PositiveInt
-    purchase_costs_pln_per_kg: list[NonNegativeFloat]
+    purchase_costs_pln_per_kg_daily: list[NonNegativeFloat]
     transport_cost_pln: NonNegativeFloat
     num_conferences_daily: list[NonNegativeInt]
     num_workers_daily: list[NonNegativeInt]
@@ -17,7 +17,7 @@ class PredictionRequest2(BaseModel):
 
     @model_validator(mode='after')
     def check_lengths_match_planning_horizon(self):
-        assert len(self.purchase_costs_pln_per_kg) == self.planning_horizon_days == len(self.num_conferences_daily) == len(self.num_workers_daily), \
+        assert len(self.purchase_costs_pln_per_kg_daily) == self.planning_horizon_days == len(self.num_conferences_daily) == len(self.num_workers_daily), \
             "Length of purchase_costs, num_conferences_daily, and num_workers_daily must match planning_horizon"
         
         return self
@@ -27,7 +27,7 @@ class PredictionRequest2(BaseModel):
             "examples": [
                 {
                     "storage_capacity_kg": 150.0,
-                    "purchase_costs_pln_per_kg": [12.0, 10.0, 14.0, 10.0, 13.0, 11.0, 15.0],
+                    "purchase_costs_pln_per_kg_daily": [12.0, 10.0, 14.0, 10.0, 13.0, 11.0, 15.0],
                     "transport_cost_pln": 100.0,
                     "num_conferences_daily": [
                         1, 0, 3, 7, 0, 0, 0

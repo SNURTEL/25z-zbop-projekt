@@ -161,7 +161,7 @@ def generate_predictions(prediction_request: PredictionRequest2) -> list[DayPred
 
     solver_input = SolverInput(
         V_max=prediction_request.storage_capacity_kg,
-        P=prediction_request.purchase_costs_pln_per_kg,
+        P=prediction_request.purchase_costs_pln_per_kg_daily,
         C=prediction_request.transport_cost_pln,
         D=demand_estimates,
         I0=prediction_request.initial_inventory_kg,
