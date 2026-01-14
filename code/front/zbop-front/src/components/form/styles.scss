@@ -1,6 +1,30 @@
 .form-page {
   padding-top: 32px;
   padding-bottom: 32px;
+
+  .fill-all-row {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .fill-all-input {
+    flex: 1;
+  }
+
+  .fill-all-button {
+    min-width: 100px;
+  }
+
+  .day-input {
+    width: 100px;
+  }
+
+  .actions-row {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+  }
 }
 
 

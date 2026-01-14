@@ -16,12 +16,10 @@ export async function getPredictionData(formData: FormValues): Promise<Predictio
     // Prepare request payload matching the v2 API schema
     const requestBody = {
       storage_capacity_kg: Number(formData.storageCapacityKg) || 150,
-      purchase_costs_pln_per_kg_daily: formData.purchaseCostsDaily,
-      transport_cost_pln: Number(formData.transportCostPln) || 100,
       num_conferences_daily: formData.numConferencesDaily,
       num_workers_daily: formData.numWorkersDaily,
       initial_inventory_kg: Number(formData.initialInventoryKg) || 40,
-      daily_loss_fraction: Number(formData.dailyLossFraction) || 0.1,
+      office_location: formData.officeLocation,
       planning_horizon_days: formData.planningHorizonDays
     };
 
