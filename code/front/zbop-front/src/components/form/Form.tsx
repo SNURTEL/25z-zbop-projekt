@@ -57,8 +57,7 @@ const validationSchema = Yup.object({
     .typeError(messages.validation.number)
     .min(0, messages.validation.nonNegative)
     .required(messages.validation.required),
-  officeLocation: Yup.string()
-    .required(messages.validation.required),
+  officeLocation: Yup.string(),  // Optional - not required by the API
 });
 
 const initialValues: FormValues = {

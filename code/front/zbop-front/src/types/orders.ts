@@ -54,8 +54,6 @@ export interface OrderResponse {
 export interface OrderFilters {
   office_id?: number;
   status?: OrderStatus;
-  date_from?: string;
-  date_to?: string;
-  skip?: number;
-  limit?: number;
+  start_date?: string;  // OpenAPI spec uses start_date, not date_from
+  end_date?: string;    // OpenAPI spec uses end_date, not date_to
 }

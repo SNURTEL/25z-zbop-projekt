@@ -1,11 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Typography, Divider, Alert, Button } from '@mui/material';
 import Form, { FormValues } from '../../components/form/Form';
 import PredictionResult, { PredictionData } from '../../components/predictionResults/PredictionResult';
 import { messages } from '../../components/form/messages';
 import './styles.scss';
-import CircularProgress from '@mui/material/CircularProgress';
 import { getPredictionData } from './utils';
 
 const CreatePrediction: React.FC = () => {
@@ -20,6 +18,7 @@ const CreatePrediction: React.FC = () => {
     setIsLoading(true);
     setSuccessMessage(null);
     setErrorMessage(null);
+    console.log("aaSubmitting form with values:", values);
     try {
       const predictions = await getPredictionData(values);
       setPredictionData(predictions);
@@ -38,49 +37,42 @@ const CreatePrediction: React.FC = () => {
   };
 
   return (
-    <Box sx={{ width: '100%', maxWidth: '2400px', margin: '0 auto', px: { xs: 2, sm: 3, md: 4 } }}>
-      <Box className="create-prediction-page">
-      <Box className="page-header">
-        <Typography variant="h3" component="h1" gutterBottom>
-          {messages.createPrediction.title}
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary" paragraph>
-          {messages.createPrediction.subtitle}
-        </Typography>
-      </Box>
+    <div className="create-prediction-page">
+      <div className="page-header">
+        <h1 className="page-title">{messages.createPrediction.title}</h1>
+        <p className="page-subtitle">{messages.createPrediction.subtitle}</p>
+      </div>
 
       {successMessage && (
-        <Alert 
-          severity="success" 
-          sx={{ mb: 3 }}
-          action={
-            <Button color="inherit" size="small" onClick={handleGoToOrders}>
-              {messages.createPrediction.goToOrders}
-            </Button>
-          }
-        >
-          {successMessage}
-        </Alert>
+        <div className="alert alert-success">
+          <span className="alert-icon">✓</span>
+          <span className="alert-message">{successMessage}</span>
+          <button className="alert-action" onClick={handleGoToOrders}>
+            {messages.createPrediction.goToOrders}
+          </button>
+        </div>
       )}
 
       {errorMessage && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {errorMessage}
-        </Alert>
+        <div className="alert alert-error">
+          <span className="alert-icon">⚠️</span>
+          <span className="alert-message">{errorMessage}</span>
+        </div>
       )}
 
-      <Box className="form-section">
+      <div className="form-section">
         <Form onSubmit={handleFormSubmit} />
-      </Box>
+      </div>
 
       {(predictionData || isLoading) && (
         <>
-          <Divider className="section-divider" />
-          <Box className="results-section">
+          <hr className="section-divider" />
+          <div className="results-section">
             {isLoading ? (
-              <Box className="loading-state">
-                <CircularProgress />
-              </Box>
+              <div className="loading-state">
+                <div className="loading-spinner" />
+                <p className="loading-text">Generowanie predykcji...</p>
+              </div>
             ) : predictionData && predictionData.length > 0 && inputData ? (
               <PredictionResult 
                 data={predictionData}
@@ -89,15 +81,12 @@ const CreatePrediction: React.FC = () => {
                 )}
               />
             ) : (
-              <Typography variant="body1" color="text.secondary">
-                {messages.predictionResult.noResults}
-              </Typography>
+              <p className="no-results">{messages.predictionResult.noResults}</p>
             )}
-          </Box>
+          </div>
         </>
       )}
-      </Box>
-    </Box>
+    </div>
   );
 };
 

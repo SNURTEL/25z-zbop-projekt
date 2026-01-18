@@ -37,9 +37,12 @@ export const ordersService = {
 
   /**
    * Update order status
+   * According to OpenAPI spec, status is passed as query parameter
    */
   async updateOrderStatus(orderId: number, status: OrderStatus): Promise<OrderResponse> {
-    return api.patch<OrderResponse>(API_ENDPOINTS.ORDERS.UPDATE_STATUS(orderId), { status });
+    return api.patch<OrderResponse>(API_ENDPOINTS.ORDERS.UPDATE_STATUS(orderId), undefined, {
+      params: { new_status: status }
+    });
   },
 
   /**

@@ -1,6 +1,6 @@
 // Auth types based on OpenAPI specification
 
-export type UserRole = 'user' | 'vendor';
+export type UserRole = 'admin' | 'manager' | 'user' | 'vendor';
 
 export interface UserRegister {
   email: string;

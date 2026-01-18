@@ -197,7 +197,55 @@ components:
           description: "alpha - współczynnik dziennej straty kawy"
           example: 0.1
 
+    OfficeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "Biurowiec Centrum"
+        address:
+          type: string
+          example: "ul. Marszałkowska 1, Warszawa"
+        max_storage_capacity:
+          type: number
+          format: float
+          minimum: 0
+          description: "V_max - maksymalna pojemność magazynu [kg]"
+          example: 100.0
+        daily_loss_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "alpha - współczynnik dziennej straty kawy"
+          example: 0.1
+
     OfficeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Biurowiec Centrum"
+        address:
+          type: string
+          example: "ul. Marszałkowska 1, Warszawa"
+        max_storage_capacity:
+          type: number
+          format: float
+          example: 100.0
+        daily_loss_rate:
+          type: number
+          format: float
+          example: 0.1
+        is_active:
+          type: boolean
+          example: true
+
+    OfficeDetailResponse:
       type: object
       properties:
         id:
@@ -223,6 +271,7 @@ components:
         current_inventory:
           type: number
           format: float
+          nullable: true
           description: "Aktualny stan magazynu [kg]"
           example: 45.5
         pending_orders:
@@ -323,10 +372,6 @@ components:
         created_at:
           type: string
           format: date-time
-        corrections:
-          type: array
-          items:
-            $ref: '#/components/schemas/OrderCorrectionResponse'
 
     OrderSummary:
       type: object
@@ -378,6 +423,9 @@ components:
           type: integer
           example: 1
         original_order_id:
+          type: integer
+          example: 1
+        optimization_request_id:
           type: integer
           example: 1
         correction_date:
@@ -566,6 +614,10 @@ components:
         parameter_value:
           type: string
           example: "75.0"
+        description:
+          type: string
+          nullable: true
+          example: "Zaktualizowany opis parametru"
 
     # ---------- Legacy Predictions ----------
     PredictionRequestV2:
@@ -719,10 +771,31 @@ paths:
 
   # ---------- Offices ----------
   /offices:
+    get:
+      tags:
+        - offices
+      summary: Lista wszystkich biurowców
+      responses:
+        '200':
+          description: Lista biurowców
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfficeResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     post:
       tags:
         - offices
       summary: Utworzenie nowego biurowca
+      description: Wymaga roli vendor
       requestBody:
         required: true
         content:
@@ -749,13 +822,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ValidationError'
 
-  /offices/{id}:
+  /offices/{office_id}:
     get:
       tags:
         - offices
       summary: Szczegóły biurowca z aktualnym stanem magazynu
       parameters:
-        - name: id
+        - name: office_id
           in: path
           required: true
           schema:
@@ -766,7 +839,71 @@ paths:
           content:
             application/json:
               schema:
+                $ref: '#/components/schemas/OfficeDetailResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Biurowiec nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - offices
+      summary: Aktualizacja biurowca
+      description: Wymaga roli vendor
+      parameters:
+        - name: office_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeUpdate'
+      responses:
+        '200':
+          description: Biurowiec zaktualizowany
+          content:
+            application/json:
+              schema:
                 $ref: '#/components/schemas/OfficeResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Biurowiec nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - offices
+      summary: Deaktywacja biurowca
+      description: Soft-delete (dezaktywacja) biurowca. Wymaga roli vendor
+      parameters:
+        - name: office_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Biurowiec zdezaktywowany
         '401':
           description: Brak autoryzacji
           content:
@@ -789,34 +926,27 @@ paths:
       parameters:
         - name: office_id
           in: query
+          description: Filtruj po ID biurowca
           schema:
             type: integer
         - name: status
           in: query
+          description: Filtruj po statusie
           schema:
             type: string
             enum: [planned, confirmed, delivered, cancelled]
-        - name: date_from
+        - name: start_date
           in: query
+          description: Data początkowa (włącznie)
           schema:
             type: string
             format: date
-        - name: date_to
+        - name: end_date
           in: query
+          description: Data końcowa (włącznie)
           schema:
             type: string
             format: date
-        - name: skip
-          in: query
-          schema:
-            type: integer
-            default: 0
-        - name: limit
-          in: query
-          schema:
-            type: integer
-            default: 100
-            maximum: 500
       responses:
         '200':
           description: Lista zamówień
@@ -833,43 +963,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-    post:
-      tags:
-        - orders
-      summary: Ręczne utworzenie zamówienia
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/OrderCreate'
-      responses:
-        '201':
-          description: Zamówienie utworzone
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/OrderResponse'
-        '401':
-          description: Brak autoryzacji
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '422':
-          description: Błąd walidacji
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ValidationError'
-
-  /orders/{id}:
+  /orders/{order_order_id}:
     get:
       tags:
         - orders
       summary: Szczegóły zamówienia
       parameters:
-        - name: id
+        - name: order_id
           in: path
           required: true
           schema:
@@ -894,13 +994,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /orders/{id}/corrections:
+  /orders/{order_id}/status:
+    patch:
+      tags:
+        - orders
+      summary: Aktualizacja statusu zamówienia
+      description: Wymaga roli vendor
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: new_status
+          in: query
+          required: true
+          description: "Nowy status: pending/confirmed/delivered/cancelled"
+          schema:
+            type: string
+            enum: [pending, confirmed, delivered, cancelled]
+      responses:
+        '200':
+          description: Status zaktualizowany
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Zamówienie nie znalezione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{order_order_id}/corrections:
     get:
       tags:
         - orders
       summary: Lista korekt dla zamówienia
       parameters:
-        - name: id
+        - name: order_id
           in: path
           required: true
           schema:
@@ -931,8 +1070,9 @@ paths:
       tags:
         - orders
       summary: Utworzenie korekty zamówienia
+      description: Wymaga roli vendor
       parameters:
-        - name: id
+        - name: order_id
           in: path
           required: true
           schema:
@@ -971,12 +1111,47 @@ paths:
 
   # ---------- Optimization ----------
   /optimization/requests:
+    get:
+      tags:
+        - optimization
+      summary: Lista żądań optymalizacji
+      parameters:
+        - name: office_id
+          in: query
+          description: Filtruj po ID biurowca
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          description: Maksymalna liczba wyników (1-100)
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Lista żądań optymalizacji
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OptimizationRequestResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     post:
       tags:
         - optimization
       summary: Utworzenie nowego żądania optymalizacji
       description: |
         Uruchamia solver CPLEX w celu wyznaczenia optymalnego harmonogramu zamówień.
+        Wymaga roli vendor.
         
         Zapotrzebowanie na kawę jest szacowane wg wzoru:
         D_t = 0.25kg × liczba_pracowników × 1.2^liczba_konferencji
@@ -1012,13 +1187,13 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /optimization/requests/{id}:
+  /optimization/requests/{request_id}:
     get:
       tags:
         - optimization
       summary: Szczegóły żądania optymalizacji z wynikami
       parameters:
-        - name: id
+        - name: request_id
           in: path
           required: true
           schema:
@@ -1049,6 +1224,7 @@ paths:
       tags:
         - settings
       summary: Lista parametrów systemowych
+      description: Wymaga roli vendor
       responses:
         '200':
           description: Lista parametrów
@@ -1065,13 +1241,45 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /settings/{name}:
+  /settings/{param_name}:
+    get:
+      tags:
+        - settings
+      summary: Pobranie parametru systemowego
+      description: Wymaga roli vendor
+      parameters:
+        - name: param_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Parametr systemowy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemParameter'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Parametr nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
     put:
       tags:
         - settings
       summary: Aktualizacja parametru systemowego
+      description: Wymaga roli vendor
       parameters:
-        - name: name
+        - name: param_name
           in: path
           required: true
           schema:

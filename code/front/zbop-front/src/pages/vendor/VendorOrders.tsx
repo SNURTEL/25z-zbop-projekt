@@ -25,10 +25,10 @@ const VendorOrders: React.FC = () => {
         filters.status = statusFilter;
       }
       if (dateFrom) {
-        filters.date_from = dateFrom;
+        filters.start_date = dateFrom;
       }
       if (dateTo) {
-        filters.date_to = dateTo;
+        filters.end_date = dateTo;
       }
       
       const data = await ordersService.getOrders(filters);
