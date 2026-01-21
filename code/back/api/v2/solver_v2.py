@@ -50,7 +50,7 @@ class SolverInputV2(NamedTuple):
     alpha: float
     S: list[list[float]]  # shape (D, T)
     X: list[list[int]]  # shape (D, B) - delivery time in days
-    x_hist: dict[tuple[int, int, int, int], float]  # (d, b, tau, l) -> amount
+    x_hist: dict[tuple[int, int, int], float]  # (d, b, tau) -> amount
 
 
 class SolverOutputV2(NamedTuple):
@@ -173,9 +173,8 @@ def solve(inp: SolverInputV2) -> SolverOutputV2:
 
             # Historical orders arriving today
             hist_deliveries_today = sum(
-                inp.x_hist.get((d, b, tau, l), 0.0)
+                inp.x_hist.get((d, b, tau), 0.0)
                 for d in range(D)
-                for l in range(1, L + 1)
                 for tau in range(-100, 0)  # Check historical days
                 if tau + inp.X[d][b] == t
             )
