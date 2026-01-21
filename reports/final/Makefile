@@ -9,8 +9,8 @@ all: pdf
 pdf: $(MAIN).pdf
 
 $(MAIN).pdf: $(TEXSRC)
-	latexmk -synctex=1 -interaction=nonstopmode -file-line-error -shell-escape -lualatex -outdir=$(OUTDIR) $(MAIN).tex
-	latexmk -synctex=1 -interaction=nonstopmode -file-line-error -shell-escape -lualatex -outdir=$(OUTDIR) $(MAIN).tex
+	latexmk -synctex=1 -interaction=nonstopmode -file-line-error -shell-escape -pdflatex -outdir=$(OUTDIR) $(MAIN).tex
+	latexmk -synctex=1 -interaction=nonstopmode -file-line-error -shell-escape -pdflatex -outdir=$(OUTDIR) $(MAIN).tex
 
 clean:
 	latexmk -C -outdir=$(OUTDIR)

@@ -9,11 +9,11 @@
 \usepackage{polski}
 \RequirePackage[
     a4paper,
-    left=2.5cm,
-    right=2.5cm,
-    top=2.5cm,
-    bottom=2.5cm,
-    marginparwidth=2.5cm
+    left=1.5cm,
+    right=1.5cm,
+    top=1.5cm,
+    bottom=1.5cm,
+    marginparwidth=1.5cm
 ]{geometry}
 \usepackage{graphicx}
 \usepackage{placeins}
@@ -105,6 +105,7 @@ System ma za zadanie automatyzować proces decyzyjny, generując optymalny harmo
 Przyjęto następujące założenia dla problemu optymalizacji dostaw kawy w wersji rozszerzonej:
 
 \begin{itemize}
+    \item \textbf{Horyzont planowania}: Decyzje podejmowane są na określony, skończony okres (np. 7 dni). W tym czasie model musi zapewnić zaspokojenie popytu w każdym dniu. W ramach horyzontu możliwe jest korygowanie wcześniej złożonych zamówień.
     \item \textbf{Wielu dystrybutorów i wiele biurowców:} System obsługuje wiele biurowców zaopatrywanych przez wielu niezależnych dystrybutorów.
     \item \textbf{Zróżnicowane koszty transportu i czasy dostaw:} Koszt stały dostawy oraz czas oczekiwania na zamówienie zależą od pary (dystrybutor, biurowiec).
     \item \textbf{System rabatowy:} Dystrybutorzy oferują ceny zależne od wielkości zamówienia (progi ilościowe). Ceny są progresywne - przekroczenie progu ilościowego skutkuje niższą ceną jednostkową dla części zamówienia będącej powyżej tego progu.
@@ -113,12 +114,13 @@ Przyjęto następujące założenia dla problemu optymalizacji dostaw kawy w wer
     \item \textbf{Straty magazynowe:} Uwzględniono współczynnik dziennej utraty kawy (np. zużycie, utrata świeżości, straty proceduralne), wyrażony jako procent bieżącego stanu magazynowego.
     \item \textbf{Horyzont planowania:} Decyzje podejmowane są dla skończonego horyzontu czasowego (np. 7 dni), przy czym model musi zapewnić zaspokojenie popytu w każdym dniu tego okresu.
     \item \textbf{Pojemność magazynów:} Każdy biurowiec posiada ograniczoną pojemność magazynową, której nie można przekroczyć.
+    \item \textbf{Korekty zamówień}: Możliwe jest korygowanie wcześniej złożonych zamówień w ramach ustalonego horyzontu planowania, np. w sytuacji nagłej zmiany zapotrzebowania na kawę. Koszt korekty jest jednostkowy, stały dla każdej pary dystrybutor-biurowiec, ale może różnić się pomiędzy dniami. Za planowanie korekt odpowiada osobny model. W ramach korekt możliwe jest jedynie modyfikowanie istniejacych zamówień, bez składania nowych.
 \end{itemize}
 
 % =============================================
 % MATHEMATICAL MODEL
 % =============================================
-\section{Model matematyczny w wersji zaawansowanej}
+\section{Model matematyczny -- planowanie zamówień}
 
 \subsection{Zbiory}
 \begin{itemize}
@@ -213,6 +215,154 @@ y^{skl}_{d,b,t} &\in \{0,1\}, && \forall d \in D, \; b \in B, \; t \in T \\
 y^{rab}_{d,b,t,l} &\in \{0,1\}, && \forall d \in D, \; b \in B, \; t \in T, \; l \in L
 \end{align}
 
+\section{Model matematyczny -- planowanie korekt}
+
+
+\subsection{Zbiory}
+
+\begin{itemize}
+    \item \(T = \{1,2,\dots,7\}\) – zbiór analizowanych dni,
+    \item \(\hat{T} = \{\hat{T}_{\max}, \dots, 0\}\) – zbiór dni historycznych przed rozpoczęciem planowania,
+    \item \(D\) – zbiór dystrybutorów, indeksowany przez \(d\),
+    \item \(B\) – zbiór biurowców, indeksowany przez \(b\),
+    \item \(L = \{1,2,\dots,L_{max}\}\) – zbiór progów rabatowych, indeksowany przez \(l\).
+\end{itemize}
+
+\subsection{Parametry}
+
+\begin{itemize}
+    \item \(V^{max}_{b}\) – maksymalna pojemność magazynu w biurowcu \(b\) [kg],
+    \item \(Q_{l}\) – próg ilościowy rabatu \(l\) [kg],
+    \item \(P_{d,t,0}\) – cena jednostkowa od dystrybutora \(d\) w dniu \(t\) pod progiem \(1\) [zł/kg],
+    \item \(P_{d,t,l}\) – cena jednostkowa od dystrybutora \(d\) w dniu \(t\) nad progiem \(l\) [zł/kg],
+    \item \(C^{fix}_{d,b}\) – stały koszt realizacji dostawy od dystrybutora \(d\) do biurowca \(b\) [zł],
+    \item \(D_{b,t}\) – zapotrzebowanie na kawę w biurowcu \(b\) w dniu \(t\) [kg],
+    \item \(I_{b,0}\) – początkowy stan magazynu kawy w biurowcu \(b\) [kg],
+    \item \(\alpha\) – procent dziennej utraty kawy,
+    \item \(S_{d,t}\) – maksymalna dostępna ilość kawy u dystrybutora \(d\) w dniu \(t\) [kg],
+    \item \(S^{\max} = \max_{(d,t)\in D \times T} S_{d,t}\) – maksymalna dzienna dostępność,
+    \item \(X_{d,b}\) – czas dostawy kawy od dystrybutora \(d\) do biurowca \(b\) [dni],
+    \item \(x^0_{d,b,\tau} \ge 0\) – zamówienia historyczne w dniu \(\tau \in \hat{T}\), które już zostały złożone i są stałe.
+    \item \(x^{kor}_{d,b,t,0}\) – wcześniej złożone korygowane zamówienie od dystrybutora \(d\) do biurowca \(b\) w dniu \(t\) \([\text{kg}]\) przed progiem 1.
+    \item \(x^{kor}_{d,b,t,l}\) – wcześniej złożone korygowane zamówienie od dystrybutora \(d\) do biurowca \(b\) w dniu \(t\) \([\text{kg}]\) nad progiem l.
+    \item \(K_{d,b,t}\) – koszt korekty zamówienia (za jednostkową zmianę względem \(x^{kor}_{d,b,t,l}\)) \([\text{zł/kg}]\).
+    \item \(R^{max}_{d,b,t}\) – maksymalna dopuszczalna wielkość korekty \([\text{kg}]\).
+\end{itemize}
+
+\subsection{Zmienne decyzyjne}
+
+\begin{itemize}
+    \item \(x_{d,b,t,0} \ge 0\) – ilość kawy zamówiona od dystrybutora \(d\) do biurowca \(b\) w dniu \(t \in T\) przed progiem rabatowym \(1\) [kg],
+    \item \(x_{d,b,t,l} \ge 0\) – ilość kawy zamówiona od dystrybutora \(d\) do biurowca \(b\) w dniu \(t \in T\) nad progiem rabatowym \(l\) [kg],
+    \item \(I_{b,t} \ge 0\) – stan magazynu kawy w biurowcu \(b\) na koniec dnia \(t \in T\) [kg],
+    \item \(y^{skl}_{d,b,t} \in \{0,1\}\) – czy w dniu \(t \in T\) składane jest zamówienie,
+    \item \(y_{d,b,t,l} \in \{0,1\}\) – zmienna binarna przekroczenia progu rabatowego \(l\) w dniu \(t \in T\), w zamówieniu biurowca \(b \in B\) od dystrybutora \(d \in D\).
+    \item \(r^{+}_{d,b,t,l} \ge 0\) – zwiększenie zamówienia względem \(x^{kor}_{d,b,t,l}\) \([\text{kg}]\).
+    \item \(r^{-}_{d,b,t,l} \ge 0\) – zmniejszenie zamówienia względem \(x^{kor}_{d,b,t,l}\) \([\text{kg}]\) \
+    \item \(r^{+}_{d,b,t,0} \ge 0\) – zwiększenie zamówienia względem \(x^{kor}_{d,b,t,0}\) \([\text{kg}]\).
+    \item \(r^{-}_{d,b,t,0} \ge 0\) – zmniejszenie zamówienia względem \(x^{kor}_{d,b,t,0}\) \([\text{kg}]\) \
+\end{itemize}
+
+\subsection{Funkcja celu}
+
+\begin{equation}
+\min \sum_{t \in T} \sum_{b \in B} \sum_{d \in D}
+\bigg(P_{d,t,0} \, x_{d,b,t,0} + C^{fix}_{d,b}\, y^{skl}_{d,b,t} + K_{d,b,t} \,(r^{+}_{d,b,t,0} + r^{-}_{d,b,t,0}))+\sum_{l \in L} 
+\big(P_{d,t,l} \, x_{d,b,t,l} + K_{d,b,t} \,(r^{+}_{d,b,t,l} + r^{-}_{d,b,t, l})\big)\bigg)
+\end{equation}
+
+\subsection{Ograniczenia}
+
+\paragraph{Powiązanie z korektami}
+\begin{equation}
+x_{d,b,t,l}
+=
+x^{kor}_{d,b,t,l}
++ r^{+}_{d,b,t,l}
+- r^{-}_{d,b,t,l}
+\qquad
+\forall d\in D,\; b\in B,\; t\in T,\; l\in L.
+\end{equation}
+
+\begin{equation}
+x_{d,b,t,0}
+=
+x^{kor}_{d,b,t,0}
++ r^{+}_{d,b,t,0}
+- r^{-}_{d,b,t,0}
+\qquad
+\forall d\in D,\; b\in B,\; t\in T.
+\end{equation}
+
+\paragraph{Ograniczenie maksymalnej korekty}
+\begin{equation}
+\sum_{l \in L}(r^{+}_{d,b,t,l} + r^{-}_{d,b,t,l}) + r^{+}_{d,b,t,0}
+- r^{-}_{d,b,t,0}\le R^{max}_{d,b,t}
+\qquad \forall d\in D,\; b\in B,\; t\in T.
+\end{equation}
+
+\paragraph{Bilans zapasów z uwzględnieniem zamówień historycznych}
+\begin{align}
+I_{b,t} = (1-\alpha) I_{b,t-1} + \sum_{d \in D}\sum_{\substack{\tau \in T \\ \tau + X_{d,b} = t}} x_{d,b,\tau,0} 
++ \sum_{d \in D} \sum_{l \in L}
+\left(
+\sum_{\substack{\tau \in T \\ \tau + X_{d,b} = t}} x_{d,b,\tau,l}
+\right) +
+\sum_{d \in D} \sum_{\substack{\tau \in \hat{T} \\ \tau + X_{d,b} = t}} x^0_{d,b,\tau,l}
+- D_{b,t}, \\
+\forall b \in B, \; t \in T
+\end{align}
+
+\paragraph{Pojemność magazynu}
+\begin{equation}
+I_{b,t} \le V^{max}_{b}, 
+\quad \forall b \in B, \; t \in T
+\end{equation}
+
+\paragraph{Powiązanie zamówienia ze zmienną binarną}
+\begin{equation}
+x_{d,b,t,0} \le S_{d,t} \, y^{skl}_{d,b,t}, 
+\quad \forall d \in D, \; b \in B, \; t \in T
+\end{equation}
+
+\paragraph{Ograniczenie dostępności u dystrybutora}
+\begin{equation}
+\sum_{b \in B} x_{d,b,t,0} + \sum_{b \in B} \sum_{l \in L} x_{d,b,t,l} \le S_{d,t}, 
+\quad \forall d \in D, \; t \in T
+\end{equation}
+
+\paragraph{Ograniczenia progowe}
+\begin{align}
+0 \le x_{d,b,t,0} &\le Q_1 \, && \forall d \in D, b \in B, t \in T\\
+0 \le x_{d,b,t,l} &\le (Q_{l+1} - Q_{l}) \, y_{d,b,t,l}, && \forall d \in D, b \in B, t \in T, l=1,\dots,L_{max}-1\\
+0 \le x_{d,b,t,1} &\le S^{max} \, y_{d,b,t,l}, && \forall d \in D, b \in B, t \in T, l=L_{max}\\
+x_{d,b,t,0} &\ge Q_1 \, y_{d,b,t,1}, && \forall d \in D, b \in B, t \in T \\
+x_{d,b,t,l} &\ge (Q_{l+1} - Q_{l}) \, y_{d,b,t,l+1}, && \forall d \in D, b \in B, t \in T, l=1,\dots,L_{max} - 1 \\
+\end{align}
+
+\paragraph{Warunki nieujemności i binarności}
+\begin{align}
+x_{d,b,t,0} &\ge 0,
+&& \forall d \in D,\; b \in B,\; t \in T \\
+x_{d,b,t,l} &\ge 0,
+&& \forall d \in D,\; b \in B,\; t \in T,\; l \in L \\
+I_{b,t} &\ge 0,
+&& \forall b \in B,\; t \in T \\
+y^{skl}_{d,b,t} &\in \{0,1\},
+&& \forall d \in D,\; b \in B,\; t \in T \\
+y^{rab}_{d,b,t,l} &\in \{0,1\},
+&& \forall d \in D,\; b \in B,\; t \in T,\; l \in L \\
+r^{+}_{d,b,t,0} &\ge 0,
+&& \forall d \in D,\; b \in B,\; t \in T \\
+r^{-}_{d,b,t,0} &\ge 0,
+&& \forall d \in D,\; b \in B,\; t \in T \\
+r^{+}_{d,b,t,l} &\ge 0,
+&& \forall d \in D,\; b \in B,\; t \in T,\; l \in L \\
+r^{-}_{d,b,t,l} &\ge 0,
+&& \forall d \in D,\; b \in B,\; t \in T,\; l \in L
+\end{align}
+
+
 % =============================================
 % APPLICATION
 % =============================================
@@ -230,7 +380,7 @@ y^{rab}_{d,b,t,l} &\in \{0,1\}, && \forall d \in D, \; b \in B, \; t \in T, \; l
 % =============================================
 \section{Testy modelu}
 
-W celu weryfikacji poprawności działania modelu oraz jego odporności na skrajne przypadki, przeprowadzono szereg testów scenariuszowych. Poniżej omówiono wybrane, najbardziej interesujące przypadki testowe. Plik \texttt{.ipynb} zawierający komplet scenariuszy testowych znajduje się w załączniku.
+W celu weryfikacji poprawności działania modelu oraz jego odporności na skrajne przypadki, przeprowadzono szereg testów scenariuszowych. Poniżej omówiono wybrane, najbardziej interesujące przypadki testowe. Pliki \texttt{.ipynb} zawierające komplet scenariuszy testowych znajdują się w załączniku.
 
 \subsection{Scenariusz podstawowy (Wielu dystrybutorów i biurowców)}
 Scenariusz ten weryfikuje podstawową poprawność działania modelu w środowisku z 2 dystrybutorami i 2 biurowcami. Dystrybutorzy różnią się cenami oraz czasem dostawy, a biurowce mają różne zapotrzebowanie.
@@ -468,5 +618,106 @@ B2 & 7 & 12.000000 & 0.000000 & None & 0.000000 & 0.000000 & 0.000000 & 0.000000
 \end{figure}
 
 \textbf{Wynik:} Model poprawnie uwzględnił nadchodzące dostawy w bilansie otwarcia. W pierwszym dniu (i częściowo drugim) system nie generował nowych, zbędnych zamówień, konsumując zapasy z dostaw historycznych (``w drodze''), co pozwoliło uniknąć przepełnienia magazynu i zbędnych kosztów.
+
+\subsection{Scenariusz: Wybór dystrybutora do korekty (różne koszty kar)}
+W tym scenariuszu system musi dokupić brakującą ilość towaru, mając do wyboru dwóch dystrybutorów, u których już złożono zamówienia. Jeden z nich ma jednak znacznie niższe koszty jednostkowe korekty zamówienia.
+
+\textbf{Parametry testu:}
+\begin{itemize}
+    \item $T=5$, $D=2$, $B=1$.
+    \item Popyt rzeczywisty: 30 kg/dzień (łącznie 150 kg).
+    \item Zamówienia zaplanowane:
+    \begin{itemize}
+        \item U Dystrybutora 1 (D0): 50 kg w dniu 1.
+        \item U Dystrybutora 2 (D1): 50 kg w dniu 1.
+        \item Łącznie zaplanowano 100 kg (brakuje 50 kg).
+    \end{itemize}
+    \item Koszty korekty ($K$):
+    \begin{itemize}
+        \item Dystrybutor 1 (D0): $K=1.00$ zł/kg (tania elastyczność).
+        \item Dystrybutor 2 (D1): $K=10.00$ zł/kg (droga elastyczność).
+    \end{itemize}
+    \item Ceny produktów i dostaw są identyczne u obu dostawców.
+    \item Limit korekty $R^{max}$ jest wysoki (100 kg), więc nie jest ograniczeniem.
+\end{itemize}
+
+\begin{table}[H]
+    \tiny
+    \centering
+\begin{tabular}{rrrrrrrrrrrrrr}
+\toprule
+Building & Day & Demand & Inventory & D0 PlannedOrder & D0 FinalOrder & $D0_r+$ & $D0_r-$ & D0 NetChange \\
+\midrule
+0 & 1 & 30.000000 & 120.000000 & 50.000000 & 100.000000 & 50.000000 & 0.000000 & 50.000000 \\
+0 & 2 & 30.000000 & 90.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 3 & 30.000000 & 60.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 4 & 30.000000 & 30.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 5 & 30.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+\begin{table}[H]
+    \tiny
+    \centering
+\begin{tabular}{rrrrrrrrrrrrrr}
+\toprule
+Building & Day & Demand & Inventory &  D1 PlannedOrder & D1 FinalOrder & $D1_r+$ & $D1_r-$ & D1 NetChange \\
+\midrule
+0 & 1 & 30.000000 & 120.000000 &  50.000000 & 50.000000 & 0.000000 & -0.000000 & 0.000000 \\
+0 & 2 & 30.000000 & 90.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 3 & 30.000000 & 60.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 4 & 30.000000 & 30.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 5 & 30.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 & 0.000000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/test_6_1.png}
+    \includegraphics[width=\textwidth]{img/test_6_2.png}
+\end{figure}
+
+\textbf{Wynik:} Model, dążąc do minimalizacji funkcji celu, skierował niemal całe zapotrzebowanie na korektę do Dystrybutora 1 (D0). Zwiększenie zamówienia u D0 kosztowało 1 zł/kg, podczas gdy u D1 kosztowałoby to 10 zł/kg.
+
+\subsection{Scenariusz: Ograniczenie maksymalnej wielkości korekty}
+Scenariusz weryfikuje mechanizm korekty zamówień w sytuacji, gdy rzeczywiste zapotrzebowanie przewyższa zaplanowane dostawy, ale możliwości zmiany zamówienia są ograniczone limitem $R^{max}$.
+
+\textbf{Parametry testu:}
+\begin{itemize}
+    \item $T=5$ dni, $D=1$ Dystrybutor, $B=1$ Biurowiec.
+    \item Popyt rzeczywisty: 25 kg/dzień (łącznie 125 kg).
+    \item Zamówienia wcześniej zaplanowane ($x^{kor}$): 20 kg/dzień (łącznie 100 kg zamówione).
+    \item Niedobór wynikający z planu: 5 kg/dzień.
+    \item Parametry korekty:
+    \begin{itemize}
+        \item Koszt korekty ($K$): 1.00 zł za każdy zmieniony kg.
+        \item Maksymalna możliwa korekta ($R^{max}$): 10.00 kg/dzień.
+    \end{itemize}
+\end{itemize}
+
+\begin{table}[H]
+    \tiny
+    \centering
+\begin{tabular}{rrrrrrrrr}
+\toprule
+Building & Day & Demand & Inventory & D0 PlannedOrder & D0 FinalOrder & $D0_r+$ & $D0_r-$ & D0 NetChange \\
+\midrule
+0 & 1 & 25.000000 & 5.000000 & 20.000000 & 30.000000 & 10.000000 & 0.000000 & 10.000000 \\
+0 & 2 & 25.000000 & 10.000000 & 20.000000 & 30.000000 & 10.000000 & 0.000000 & 10.000000 \\
+0 & 3 & 25.000000 & 10.000000 & 20.000000 & 25.000000 & 5.000000 & 0.000000 & 5.000000 \\
+0 & 4 & 25.000000 & 5.000000 & 20.000000 & 20.000000 & 0.000000 & 0.000000 & 0.000000 \\
+0 & 5 & 25.000000 & 0.000000 & 20.000000 & 20.000000 & 0.000000 & 0.000000 & 0.000000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{img/test_7_1.png}
+\end{figure}
+
+\textbf{Wynik:} Model wykrył niedobór towaru i zdecydował się na korektę \textit{in plus} ($r^+$). W dniach 1, 2 i 3 zwiększono wielkość zamówienia odpowiednio o 10 kg, 10 kg i 5 kg. Model poniósł dodatkowy koszt korekty ($25 \text{ zł}$), który był jednak niezbędny do pokrycia zapotrzebowania.
+
 
 \end{document}
