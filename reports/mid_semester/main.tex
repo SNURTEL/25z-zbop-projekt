@@ -1,0 +1,512 @@
+\documentclass[12pt,a4paper]{mwart}
+
+% =============================================
+% PACKAGES
+% =============================================
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english,polish]{babel}
+\usepackage{polski}
+\RequirePackage[
+    a4paper,
+    left=2.5cm,
+    right=2.5cm,
+    top=2.5cm,
+    bottom=2.5cm,
+    marginparwidth=2.5cm
+]{geometry}
+\usepackage{graphicx}
+\usepackage{placeins}
+\usepackage{amsmath, amssymb}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{mlmodern}
+\usepackage[export]{adjustbox}
+
+\usepackage{graphicx} 
+\usepackage{float}    
+
+\RequirePackage[
+    disable,
+    colorinlistoftodos,
+    textsize=tiny
+]{todonotes}
+\RequirePackage{marginnote}
+% marginpars are disabled in mwart -- replace with marginnotes
+% https://tug.ctan.org/macros/latex/contrib/todonotes/todonotes.pdf
+\let\marginpar\marginnote
+
+\hypersetup{
+    colorlinks=false
+}
+
+% =============================================
+% DOCUMENT
+% =============================================
+\begin{document}
+
+% =============================================
+% TITLE PAGE
+% =============================================
+\begin{titlepage}
+    \centering
+    
+    \vspace*{2cm}
+    
+    {\LARGE \textbf{Dokumentacja śródsemestralna}}\\[1.5cm]
+    
+    {\Huge \textbf{System wspierający planowanie zapasów kawy}}\\[2cm]
+    
+    % --- Autorzy ---
+    {\large 
+    \textbf{Zespół 2:}\\[0.3cm]
+    Krzysztof Fijałkowski\\
+    Jakub Kordel\\
+    Tomasz Owienko\\
+    Tomasz Świderski
+    }\\[1cm]
+    
+    % --- Zespół i wersja ---
+    {\large
+   
+    \textbf{Wersja dokumentu: 1.0}\\[0.3cm]
+    2.12.2025
+    }
+    
+    \vfill
+\end{titlepage}
+
+% =============================================
+% TABLE OF CONTENTS
+% =============================================
+{
+\tableofcontents
+\if!@todonotes@disabled\else\listoftodos[TODO]\fi
+\clearpage
+}
+
+% =============================================
+% INTRODUCTION (WPROWADZENIE)
+% =============================================
+\section{Wprowadzenie}
+
+\subsection{Problem biznesowy}
+W biurowcach o dużym zużyciu kawy kluczowe jest zapewnienie ciągłości dostaw przy jednoczesnej minimalizacji kosztów operacyjnych. 
+Niewystarczające zapasy prowadzą do przerw w pracy i niezadowolenia pracowników, natomiast zbyt duże zapasy generują koszty magazynowania oraz ryzyko strat.
+
+Zmienne ceny kawy oraz nieregularne zapotrzebowanie powodują, że decyzje zakupowe muszą być podejmowane optymalnie, a nie intuicyjnie. 
+Z tego powodu konieczne jest opracowanie modelu matematycznego, który pozwoli na wyznaczenie najkorzystniejszego harmonogramu zamówień w zadanym horyzoncie przy uwzględnieniu ograniczeń logistycznych i kosztowych.
+
+% analiza wymagań, uzasadnienie przyjętych uproszczeń
+W podstawowej wersji system przeznaczony jest do użytku dla zarządcy biurowca, który odpowiedzialny jest za planowanie zamówień kawy. System powinien wyznaczać optymalny harmonogram zamówień na podstawie czynników takich jak ceny zakupu i transportu kawy czy szacowane zapotrzebowanie na kawę w biurze.
+
+\subsection{Założenia}
+
+Podstawowe założenia problemu:
+
+\begin{itemize}
+    \item Dzienne zapotrzebowanie na kawę musi być w pełni zaspokojone.
+    \item Planowanie zamówień odbywa się w horyzoncie tygodniowym.
+    \item Szacowane zapotrzebowanie na kawę jest zmienne w czasie, lecz znane z góry na początku każdego tygodnia (uproszczenie, predykcja zapotrzebowania nie jest przedmiotem projektu). Zapotrzebowanie jest pochodną innych czynników takich jak liczba pracowników w biurze czy liczba zaplanowanych konferencji danego dnia -- mają one znaczenie z perspektywy biznesowej, ale nie będą brane pod uwagę w samym modelu matematycznym, którego wejściem jest zapotrzebowanie wyrażone bezpośrednio w kilogramach kawy na dzień wyznaczane zgodnie z równaniem \ref{eq:demand_estimation}. 
+    \item Cena kawy zmienia się w czasie, ale jest znana z góry na początku tygodnia.
+    \item Koszty transportu kawy są stałe i niezależne od wielkości zamówienia.
+    \item Magazyn w biurowcu ma ograniczoną pojemność.
+    \item Występują naturalne straty kawy na poziomie 10\% zawartości magazynu dziennie.
+    \item Stan początkowy magazynu jest znany.
+    \item Zamówienie składane jest raz na początku tygodnia i nie ma możliwości jego późniejszej korekty
+    \item Celem jest znalezienie harmonogramu zamówień minimalizującego całkowite koszty.
+\end{itemize}
+
+%\subsection{Źródło danych}
+
+% opis źródeł danych i metod estymacji parametrów
+
+% =============================================
+% MODELS (MODELE)
+% =============================================
+\section{Model matematyczny}
+
+Model opisuje proces planowania zapasów kawy w biurowcu w zadanym horyzoncie czasowym (w rozpatrywanym scenariuszu tygodniowym).
+Celem jest minimalizacja całkowitych kosztów związanych z zakupem kawy oraz kosztem transportu ponoszonym w dniach, w których dokonuje się zamówienia. 
+
+\todo{Wywaliłem stąd większość opisu bo się dublowała z założeniami, imo do tamtej sekcji pasuje lepiej}
+
+Celem optymalizacji jest znalezienie takiego harmonogramu zamówień, który zaspokoi dzienne zapotrzebowanie biura na kawę, nie przekroczy pojemności magazynowej oraz zminimalizuje koszty zakupu i transportu. 
+
+% W każdym dniu biuro posiada określone zapotrzebowanie na kawę, które jest tożsame z rzeczywistym zużyciem i musi zostać zaspokojone z aktualnych zapasów. Dodatkowo w magazynie występują naturalne straty kawy, wynoszące \(10\%\) stanu z poprzedniego dnia.
+
+% Zapasy kawy są przechowywane w magazynie o ograniczonej pojemności wewnątrz biurowca, co oznacza, że ilość kawy na koniec każdego dnia nie może przekroczyć ustalonego limitu. Początkowa ilość kawy w magazynie jest znana. 
+
+% Każdego dnia możliwe jest złożenie zamówienia na dowolną nieujemną ilość kawy. Cena kawy zmienia się każdego dnia, ale jest znana dla całego horyzontu planowania (predykcja ceny kawy nie jest przedmiotem projektu). Jeżeli zamówienie jest złożone danego dnia, doliczany jest koszt transportu niezależny od wielkości zamówienia. Aby poprawnie odwzorować ten mechanizm, wprowadzono zmienną binarną informującą o tym, czy zamówienie zostało złożone w danym dniu.
+
+% Bilans zapasów określa, że stan magazynu na koniec dnia zależy od pozostałości z dnia poprzedniego pomniejszonej o straty, od wielkości złożonego zamówienia oraz od dziennego zużycia kawy. Obowiązuje także warunek nieujemności ilości kawy w magazynie oraz wielkości zamówienia.
+
+% Celem optymalizacji jest znalezienie takiego harmonogramu zamówień, który zaspokoi dzienne zapotrzebowanie biura na kawę, nie przekroczy pojemności magazynowej oraz zminimalizuje koszty zakupu i transportu. 
+
+\subsection{Opis matematyczny modelu w wersji podstawowej}
+
+\subsubsection{Zbiory}
+
+\begin{itemize}
+    \item \( T = \{1,2,\dots,7\} \) – zbiór analizowanych dni
+\end{itemize}
+
+Problem zakłada planowanie w horyzoncie tygodniowym, ale sformułowanie modelu pozwala na ustalenie dowolnego horyzontu planowania.
+
+\subsubsection{Parametry}
+
+\begin{itemize}
+    \item \( V_{max} \) – maksymalna pojemność magazynu w biurowcu na kawę \([\text{kg}]\)
+    \item \( P_t \) – koszt zakupu kawy w dniu \( t \) \([\text{zł/kg}]\)
+    \item \( C \) – koszt transportu kawy, jeśli składane jest zamówienie \([\text{zł}]\)
+    \item \( D_t \) – dzienne zapotrzebowanie na kawę \([\text{kg}]\)
+    \item \( I_0 \) – początkowy stan magazynu kawy \([\text{kg}]\)
+    \item \( \alpha = 0.1 \) – procent kawy tracony każdego dnia
+\end{itemize}
+
+\subsubsection{Zmienne decyzyjne}
+
+\begin{itemize}
+    \item \( x_t \ge 0 \) – ilość zamówionej kawy w dniu \( t \) \([\text{kg}]\)
+    \item \( I_t \ge 0 \) – stan magazynu kawy na koniec dnia \( t \) (zmienna pomocnicza) \([\text{kg}]\)
+    \item \( y_t \in \{0,1\} \) – zmienna binarna (1 gdy składane jest zamówienie w dniu $t$, $0$ w przeciwnym razie)
+\end{itemize}
+
+\subsubsection{Funkcja celu}
+
+\begin{equation}
+\min \sum_{t \in T} \left( P_t \cdot x_t + C \cdot y_t \right)
+\end{equation}
+
+Minimalizacja łącznego kosztu zakupu i transportu kawy całym rozpatrywanym okresie. 
+
+\subsubsection{Ograniczenia}
+
+% ==========================
+% Bilans zapasów
+% ==========================
+\paragraph{Bilans zapasów}
+
+\begin{equation}
+\begin{split}
+I_1 = (1 - \alpha) \cdot I_0 + x_1 - q_1 & \hspace{3em} \text{dla } t=1 \\
+I_t = (1 - \alpha) \cdot I_{t-1} + x_t - q_t & \hspace{3em} \text{dla } t \geq 2 
+\end{split}
+\end{equation}
+
+% ==========================
+% Pojemność magazynu
+% ==========================
+\paragraph{Ograniczenie pojemności magazynu}
+
+\begin{align}
+    I_t \leq C \qquad \forall t \in T
+\end{align}
+
+% ==========================
+% Warunki nieujemności
+% ==========================
+\paragraph{Warunki nieujemności}
+
+\begin{align}
+    I_t \geq 0, \qquad x_t \geq 0 \qquad \forall t \in T
+\end{align}
+
+% ==========================
+% Powiązanie kosztu transportu
+% ==========================
+\paragraph{Powiązanie kosztu transportu z zamówieniem}
+
+\begin{align}
+    x_t \leq M \cdot y_t \qquad \forall t \in T
+\end{align}
+
+Gdzie \( M \) jest dużą stałą liczbową.
+
+\subsection{Kierunki rozwoju}
+
+\begin{itemize}
+    \item Kompleksowe planowanie -- model może zostać rozszerzony o centralnego dystrybutora kawy, który sprowadza kawę od producenta (np. z dużym opóźnieniem czasowym) i dostarcza ją do wielu biurowców. W takim sformułowaniu problemu poszczególne biurowce oraz dystrybutor współpracują ze sobą aby zminimalizować sumę swoich wydatków.
+    \item Zmienne zapotrzebowanie i możliwość korekty -- w obecnym sformułowaniu modelu przyjęte zostało założenie, że zapotrzebowanie na kawę da się dobrze oszacować na początku tygodnia, co wcale nie musi odpowiadać sytuacjom rzeczywistym. Model może zostać rozszerzony o możliwość korekty istniejących zamówień, jeśli zajdzie taka potrzeba. W takiej postaci planowanie odbywa się nie raz na tydzień, ale codziennie. Wejściem modelu byłoby szacowane zapotrzebowanie na kawę oraz \emph{wielkość złożonych dotychczas zamówień}. Jeśli w którymś dniu znacznie zmienią się szacunki zapotrzebowania na kawę (np. pojawi się duża, niespodziewana konferencja), model może zasugerować modyfikację istniejącego zamówienia, co zapewne będzie wiązało się z dodatkową opłatą.
+    \item Wprowadzenie wielu produktów -- można założyć, że kawa nie jest jedynym produktem oferowanym przez dostawcę, może on mieć w asortymencie także np. mleko i przekąski, charakteryzujące się innymi terminami ważności niż kawa. W takiej sytuacji model powinien zaplanować przewóz jak największej liczby produktów w jednej dostawie, uwzględniając przy tym różne terminu przydatności produktów do spożycia.
+\end{itemize}
+
+\todo{czy to ma jakiś sens??? starałem się przypomnieć sobie co Żółtowska i Kaleta mówili na prezce, to z korektą na pewno się pojawiło i imo ma sens, nie pamietam dokładnie tego pierwszego}
+
+\section{Model matematyczny w wersji zaawansowanej}
+
+Realizowane rozszerzenia
+
+\begin{itemize}
+    \item Wielu dystrybutorów oraz wiele biurowców, z różnymi cenami transportu i kawy dla każdej pary dystrybutor--biurowiec. +
+    \item Cena kawy za kilogram zależna od wielkości zamówienia (premiowanie większych wolumenów). +
+    \item Możliwość korekty w przypadku zmiany realnego zapotrzebowania: dodatkowym wejściem modelu są aktualnie złożone zamówienia, które można korygować za opłatą. +
+    \item Uwzględnienie opóźnień transportu kawy (z możliwością powiązania czasu dostawy z ceną: szybszy transport = wyższa cena). -
+\end{itemize}
+
+\clearpage
+\subsection{Zbiory}
+
+\begin{itemize}
+    \item \(T = \{1,2,\dots,7\}\) – zbiór analizowanych dni.
+    \item \(D\) – zbiór dystrybutorów, indeksowany przez \(d\).
+    \item \(B\) – zbiór biurowców (lokacji), indeksowany przez \(b\). Każdy biurowiec posiada własny magazyn.
+    \item \(L\) – zbiór progów rabatowych, indeksowane l.
+\end{itemize}
+
+\clearpage
+\subsection{Parametry}
+
+\begin{itemize}
+    \item \(V^{max}_{b}\) – maksymalna pojemność magazynu w biurowcu \(b\) na kawę \([\text{kg}]\).
+    \item \(Q_{l}\) – progi ilościowe [kg], \(l=1,\dots,L\).
+    \item \(P_{d,t,l}\) – cena jednostkowa od dystrybutora \(d\) w dniu \(t\) dla progu \(l\) \([\text{zł/kg}]\).
+    \item \(C^{fix}_{d,b}\) – stały koszt realizacji dostawy od dystrybutora \(d\) do biurowca \(b\) \([\text{zł}]\).
+    \item \(D_{b,t}\) – zapotrzebowanie na kawę w biurowcu \(b\) w dniu \(t\) \([\text{kg}]\).
+    \item \(I_{b,0}\) – początkowy stan magazynu kawy w biurowcu \(b\) \([\text{kg}]\).
+    \item \(\alpha\) – procent kawy tracony każdego dnia (np. \(\alpha = 0.1\)).
+    \item \(S_{d,t}\) – maksymalna dostępna ilość kawy u dystrybutora \(d\) w dniu \(t\) \([\text{kg}]\).
+    \item \(M\) – duża stała używana do powiązań ze zmienną binarną.
+    %
+    % NOWE PARAMETRY – KOREKTY
+    \item \(x^{0}_{d,b,t}\) – wcześniej złożone zamówienie od dystrybutora \(d\) do biurowca \(b\) w dniu \(t\) \([\text{kg}]\).
+    \item \(K_{d,b,t}\) – koszt korekty zamówienia (za jednostkową zmianę względem \(x^{0}\)) \([\text{zł/kg}]\).
+    \item \(R^{max}_{d,b,t}\) – maksymalna dopuszczalna wielkość korekty \([\text{kg}]\).
+    \item \(L_{d, b}\) - czas dostawy dla par biurowiec - dystrybutor \
+\end{itemize}
+
+\clearpage
+\subsection{Zmienne decyzyjne}
+
+\begin{itemize}
+    \item \(x_{d,b,t} \ge 0\) – ilość kawy zamówiona od dystrybutora \(d\) i dostarczona do biurowca \(b\) w dniu \(t\) \([\text{kg}]\).
+    \item \(I_{b,t} \ge 0\) – stan magazynu kawy w biurowcu \(b\) na koniec dnia \(t\) \([\text{kg}]\).
+    \item \(y^{skl}_{d,b,t} \in \{0,1\}\) – czy w dniu \(t\) składane jest nowe zamówienie.
+    %
+    % NOWE ZMIENNE – KOREKTY
+    \item \(r^{+}_{d,b,t} \ge 0\) – zwiększenie zamówienia względem \(x^{0}_{d,b,t}\) \([\text{kg}]\).
+    \item \(r^{-}_{d,b,t} \ge 0\) – zmniejszenie zamówienia względem \(x^{0}_{d,b,t}\) \([\text{kg}]\).
+    %
+    % NOWE ZMIENNE – PROGI RABATOWE
+    \item \(y^{rab}_{d,b,t,l} \in \{0,1\}\) – zmienna binarna: zamówienie w progu rabatowym \(l\).
+\end{itemize}
+
+\clearpage
+\subsection{Funkcja celu}
+
+Dla danego biurowca suma 3 czynników: Kosztów zamówień od poszczególnych dystrybutorów po danej cenie rabatowej zależnej od wolumenu, kosztów transportu i kosztów korekt.
+\begin{equation}
+\min \sum_{t\in T}\sum_{b\in B}\sum_{d\in D} 
+\Big( 
+\sum_{l=1}^{L} P_{d,t,l} \, x_{d,b,t} \, y^{rab}_{d,b,t,l} 
++ C^{fix}_{d,b}\, y^{skl}_{d,b,t}
++ K_{d,b,t} \,(r^{+}_{d,b,t} + r^{-}_{d,b,t})
+\Big)
+\end{equation}
+
+\clearpage
+\subsection{Ograniczenia}
+
+\paragraph{Bilans zapasów dla każdego biurowca \(b\)}
+\begin{align}
+I_{b,1} &= (1-\alpha)\, I_{b,0} + \sum_{d\in D} x_{d,b,1-L_{d,b}} - D_{b,1}, \\
+I_{b,t} &= (1-\alpha)\, I_{b,t-1} + \sum_{d\in D} x_{d,b,t-L_{d,b}} - D_{b,t}
+\qquad \forall b\in B,\; t\ge 2.
+\end{align}
+
+\paragraph{Pojemność magazynu}
+\begin{equation}
+I_{b,t} \le V^{max}_{b}
+\qquad \forall b\in B,\; t\in T.
+\end{equation}
+
+\paragraph{Powiązanie wielkości zamówienia ze zmienną binarną czy zamówienie złożone}
+\begin{equation}
+x_{d,b,t} \le M\, y^{skl}_{d,b,t} 
+\qquad \forall d\in D,\; b\in B,\; t\in T.
+\end{equation}
+
+\paragraph{Ograniczenie dostępności u dystrybutora }
+\begin{equation}
+\sum_{b\in B} x_{d,b,t} \le S_{d,t} 
+\qquad \forall d\in D,\; t\in T.
+\end{equation}
+
+\paragraph{Powiązanie z korektami}
+% obustronnie przez R_max żeby skasować to ograniczenie jeśli nie robimy korekt
+\begin{equation}
+R^{max}_{d,b,t} \cdot x_{d,b,t} = R^{max}_{d,b,t} \cdot ( x^{0}_{d,b,t} + r^{+}_{d,b,t} - r^{-}_{d,b,t} )
+\qquad \forall d\in D,\; b\in B,\; t\in T.
+\end{equation}
+
+\paragraph{Wybór jednego progu rabatowego}
+\begin{align}
+\sum_{l=1}^{L} y^{rab}_{d,b,t,l}  &= 1 \quad \forall d\in D,b\in B,t\in T, \\
+Q_l \, y^{rab}_{d,b,t,l}  &\le x_{d,b,t} \le Q_{l+1} \, y^{rab}_{d,b,t,l}  + M (1 - y^{rab}_{d,b,t,l} ) 
+\quad \forall d\in D,b\in B,t\in T,l\in L \setminus \{L\}
+\end{align}
+
+\paragraph{Ograniczenie maksymalnej korekty}
+\begin{equation}
+r^{+}_{d,b,t} + r^{-}_{d,b,t} \le R^{max}_{d,b,t}
+\qquad \forall d\in D,\; b\in B,\; t\in T.
+\end{equation}
+
+\paragraph{Warunki nieujemności i binarności}
+\begin{align}
+x_{d,b,t} &\ge 0, \qquad
+I_{b,t} \ge 0, \qquad
+r^{+}_{d,b,t} \ge 0, \qquad
+r^{-}_{d,b,t} \ge 0, \\
+y^{skl}_{d,b,t} &\in \{0,1\}, \qquad
+y^{rab}_{d,b,t,l}  \in \{0,1\} \qquad \forall d \in D,b\in B,t\in T,l\in L
+\end{align}
+
+
+\clearpage
+\section{Aplikacja}
+\FloatBarrier
+
+W ramach projektu przygotowano aplikację do użytku przez zarządcę biurowca. Aplikacja pozwala na wprowadzanie danych potrzebnych do predykcji popytu na kawę w najbliższych dniach. Aplikacja pozwala użytkownikowi wprowadzić ceny kawy, liczbę pracowników oraz konferencji każdego dnia, a następnie na podstawie tych danych generowane są rekomendacje zamówień. Szacowanie zapotrzebowania na kawę odbywa się za pomocą prostego wzoru\todo{zostało mi to objawione we śnie}:
+
+\begin{equation} \label{eq:demand_estimation}
+    D_t = 0.25\text{kg} \cdot \text{liczba pracowników}_t \cdot (1.2)^ {\text{liczba konferencji}_t}.
+\end{equation}
+
+W razie potrzeby, możliwa jest edycja stałych: pojemności magazynu (w kg), kosztu jednostkowego transportu (PLN), początkowej ilości kawy w magazynie (w kg) oraz współczynnika dziennej utraty zasobu (rysunki \ref{fig:ui_1} i \ref{fig:ui_2}).
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=0.8\linewidth,trim={18cm 0 18cm 0},clip]{ui_1.png}
+    \caption{Interfejs użytkownika aplikacji webowej}
+    \label{fig:ui_1}
+\end{figure}
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=0.8\linewidth,trim={18cm 0 18cm 0},clip]{ui_2.png}
+    \caption{Interfejs użytkownika aplikacji webowej}
+    \label{fig:ui_2}
+\end{figure}
+
+Po wprowadzeniu wymaganych danych użytkownik wciska przycisk \emph{Generate predictions}. Na ekranie pojawia się tabela z optymalnym harmonogramem wielkości zamówień kawy na każdy dzień oraz wykresy wizualizujące:
+
+\begin{itemize}
+    \item zmiany popytu i stanu magazynu w kg
+    \item harmonogram wielkości zamówień w kg
+    \item dzienny sumaryczny koszt transportu i kawy w PLN
+    \item koszt skumulowany w PLN
+\end{itemize}
+
+Frontend aplikacji webowej został wykonany w technologi React, a backend przy pomocy środowiska FastAPI. Model przeznaczony jest dla solvera CPLEX.
+
+\FloatBarrier
+\section{Dane testowe i analiza wyników}
+W celu przetestowania modelu oraz aplikacji przygotowano syntetyczne dane testowe pozwalające zweryfikować czy zachowanie modelu jest poprawne. Ustalono następujące stałe:
+
+\begin{itemize}
+    \item Długość horyzontu, dwa tygodnie: $T = \{1,2,\dots,14\}$
+    \item Maksymalna pojemność magazynu: $V_{\max} = 25 \text{ kg}$
+    \item Koszt transportu (jednorazowy przy zamówieniu): C = 50 zł
+    \item Początkowy stan magazynu: $I_0 = 2 \text{ kg}$
+    \item Dzienna strata kawy: $\alpha = 0.1$ (10\%)
+\end{itemize}
+
+Parametry różniące się dla każdego dnia przedstawiono w tabeli \ref{tab:test_data}.
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{c|c|c|c}
+\hline
+Dzień & Liczba konferencji & Liczba pracowników & Cena kawy [zł/kg] \\
+\hline
+1 & 2 & 15 & 35 \\
+2 & 0 & 12 & 5 \\
+3 & 1 & 10 & 150 \\
+4 & 8 & 30  & 60 \\
+5 & 3 & 18 & 37 \\
+\textit{6} & \textit{0} & \textit{0}  & \textit{35} \\
+\textit{7} & \textit{0} & \textit{0} & \textit{36} \\
+8 & 1 & 16 & 80 \\
+9 & 2 & 6  & 37 \\
+10 & 4 & 20 & 39 \\
+11 & 2 & 15 & 36 \\
+12 & 2 & 4  & 35 \\
+\textit{13} & \textit{0} & \textit{0} & \textit{37} \\
+\textit{14} & \textit{0} & \textit{0} & \textit{36} \\
+\hline
+\end{tabular}
+\caption{Dane wejściowe: liczba konferencji, liczba pracowników oraz cena kawy}
+\label{tab:test_data}
+\end{table}
+
+W dniu 2 ustalono bardzo niską cenę kawy na 5 zł/kg, w kolejnych trzech już znacznie wyższą, co powinno skutkować złożeniem dużego zamówienia w dniu 2. W dniu czwartym wprowadzono dużą liczbę konferencji i liczbę pracowników. W weekendy w biurowcu się nie pracuje, w związku z czym zapotrzebowanie jest wtedy równe $0$ kg/dzień. Należy zaznaczyć, że dokładne liczby wykorzystane w teście mogą nie odzwierciedlać rzeczywistych rzędów wielkości w zastosowaniach biznesowych -- chodzi jedynie o weryfikację kluczowych założeń modelu.
+
+Według oczekiwań model powinien złożyć duże zamówienie w dniu 2 i dążyć do wykorzystania całej zmagazynowanej kawy do dnia 5 (piątek), aby uniknąć straty $19\%$ zapasów w weekend. W kolejnym tygodniu, gdzie zapotrzebowanie oraz ceny są bardziej stabilne, model powinien balansować między utrzymaniem niskich stanów magazynowych a ograniczeniem liczby zamówień (faktyczne zachowanie będzie zależało od dokładnych danych).
+
+\FloatBarrier
+\subsection{Weryfikacja i interpretacja wyników}
+
+\FloatBarrier
+Rysunki \ref{fig:demand_vs_inventory}, \ref{fig:order_amount}, \ref{fig:daily_cost} i \ref{fig:cumulative_cost} przedstawiają wyniki działania modelu dla przedstawionych danych testowych. Zgodnie z oczekiwaniami w dniu 2 pojawiło się bardzo duże zamówienie, w wyniku którego wykorzystana została cała pojemność magazynu. W dniach 4 i 5 składane były małe zamówienia (dzień 3 został pominięty z uwagi na wysoki koszt kawy za kilogram), a pod koniec tygodnia roboczego stan magazynowy osiągnął $0$kg. Co ciekawe, niezerowe zamówienie zostało złożone w dniu 7 (niedziela) mimo braku pracowników w biurze, aby uniknąć wysokiego kosztu kawy w dniu następnym. W drugim tygodniu poziom magazynu utrzymywany był w okolicach zera (rysunek \ref{fig:demand_vs_inventory}), z czego można wywnioskować, że koszt regularnych dostaw był niższy, niż gdyby duża ilość kawy miała być magazynowana. Przeprowadzony test wskazuje na poprawne działanie modelu. 
+
+Kolejne 16 testów znajduje się w pliku \texttt{code/back/api/test\_solver.ipynb} w repozytorium kodu. Nie zostały one omówione w tym dokumencie, ponieważ ich konkluzje z grubsza pokrywają się z wynikami przedstawionego testu.
+
+\todo{Czy coś tutaj pisać o notebooku na githubie? Tam mamy od groma tych testów, tylko nie są za bardzo opisane. Można coś wspomnieć żeby nie było że zrobiliśmy jeden test i elo - jakby nie patrzeć jest punkt za \emph{różnorodne dane}}
+
+\begin{figure}[htb]
+    \begin{subfigure}{.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,trim={0 0.5cm 0 0},clip]{wykres1.png} 
+        \caption{Popyt i stan magazynu}
+        \label{fig:demand_vs_inventory}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth,trim={0 1cm 0 0},clip]{wykres2.png} 
+        \caption{Wielkości zamówień}
+        \label{fig:order_amount}
+    \end{subfigure}
+    \\
+    \begin{subfigure}{.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{wykres3.png} 
+        \caption{Koszty zakupu kawy i transportu}
+        \label{fig:daily_cost}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{.49\textwidth}
+        \centering
+        \includegraphics[width=\textwidth]{wykres4.png} 
+        \caption{Koszt skumulowany}
+        \label{fig:cumulative_cost}
+    \end{subfigure}
+    \caption{Wyniki działania modelu na danych testowych}
+\end{figure}
+
+\FloatBarrier
+
+\subsection{Złożoność obliczeniowa}
+Przedstawiony model jest przykładem mieszanej całkowitoliczbowej liniowej optymalizacji (MILP) z uwzględnieniem strat magazynowych. Zawiera zarówno zmienne ciągłe (\(x_t, I_t \ge 0\)) odpowiadające zamówieniom i stanom magazynu, jak i zmienne binarne (\(y_t \in \{0,1\}\)) decydujące o realizacji zamówienia. Z powodu obecności zmiennych całkowitoliczbowych problem jest \emph{w ogólnej postaci NP-trudny}, jednak jego wymiarowość umożliwia rozwiązanie go w ciągu zaledwie kilkudziesięciu milisekund za pomocą solvera CPLEX.
+
+% =============================================
+% BIBLIOGRAPHY
+% =============================================
+%\newpage
+%\todo[inline]{co z tym?}
+%\begin{thebibliography}{9}
+
+%\bibitem{ref1}
+%Autor, \textit{Tytuł}, Rok.
+
+%\bibitem{ref2}
+%Autor, \textit{Tytuł}, Rok.
+
+%\end{thebibliography}
+
+\end{document}
