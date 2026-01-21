@@ -26,11 +26,9 @@ export type FormValues = {
   planningHorizonDays: number;
   numConferencesDaily: number[];
   numWorkersDaily: number[];
-  purchaseCostsDaily: number[];
   storageCapacityKg: number | '';
-  transportCostPln: number | '';
   initialInventoryKg: number | '';
-  dailyLossFraction: number | '';
+  officeLocation: string;
 };
 
 export type FormProps = {
@@ -50,38 +48,25 @@ const validationSchema = Yup.object({
   numWorkersDaily: Yup.array()
     .of(Yup.number().min(0, messages.validation.nonNegative).integer(messages.validation.integer))
     .required(messages.validation.required),
-  purchaseCostsDaily: Yup.array()
-    .of(Yup.number().min(1, messages.validation.positive).integer(messages.validation.integer))
-    .required(messages.validation.required),
   storageCapacityKg: Yup.number()
     .typeError(messages.validation.number)
     .integer(messages.validation.integer)
     .min(1, messages.validation.positive)
     .required(messages.validation.required),
-  transportCostPln: Yup.number()
-    .typeError(messages.validation.number)
-    .min(0, messages.validation.nonNegative)
-    .required(messages.validation.required),
   initialInventoryKg: Yup.number()
     .typeError(messages.validation.number)
     .min(0, messages.validation.nonNegative)
     .required(messages.validation.required),
-  dailyLossFraction: Yup.number()
-    .typeError(messages.validation.number)
-    .min(0, messages.validation.between0and1)
-    .max(1, messages.validation.between0and1)
-    .required(messages.validation.required),
+  officeLocation: Yup.string(),  // Optional - not required by the API
 });
 
 const initialValues: FormValues = {
   planningHorizonDays: 7,
   numConferencesDaily: Array(7).fill(1),
   numWorkersDaily: Array(7).fill(20),
-  purchaseCostsDaily: Array(7).fill(12),
   storageCapacityKg: 150,
-  transportCostPln: 100,
   initialInventoryKg: 40,
-  dailyLossFraction: 0.1,
+  officeLocation: '',
 };
 
 // Helper component to handle array resizing with proper hook usage
@@ -93,8 +78,6 @@ const FormContent: React.FC<{
   setFillConferencesValue: (value: string) => void;
   fillWorkersValue: string;
   setFillWorkersValue: (value: string) => void;
-  fillCostsValue: string;
-  setFillCostsValue: (value: string) => void;
 }> = ({
   isSubmitting,
   values,
@@ -103,8 +86,6 @@ const FormContent: React.FC<{
   setFillConferencesValue,
   fillWorkersValue,
   setFillWorkersValue,
-  fillCostsValue,
-  setFillCostsValue,
 }) => {
   const [isAdvancedExpanded, setIsAdvancedExpanded] = useState(false);
 
@@ -115,11 +96,9 @@ const FormContent: React.FC<{
       if (values.planningHorizonDays > currentLength) {
         setFieldValue('numConferencesDaily', [...values.numConferencesDaily, ...Array(values.planningHorizonDays - currentLength).fill(1)]);
         setFieldValue('numWorkersDaily', [...values.numWorkersDaily, ...Array(values.planningHorizonDays - currentLength).fill(20)]);
-        setFieldValue('purchaseCostsDaily', [...values.purchaseCostsDaily, ...Array(values.planningHorizonDays - currentLength).fill(12)]);
       } else {
         setFieldValue('numConferencesDaily', values.numConferencesDaily.slice(0, values.planningHorizonDays));
         setFieldValue('numWorkersDaily', values.numWorkersDaily.slice(0, values.planningHorizonDays));
-        setFieldValue('purchaseCostsDaily', values.purchaseCostsDaily.slice(0, values.planningHorizonDays));
       }
     }
   }, [values.planningHorizonDays, values.numConferencesDaily.length, setFieldValue]);
@@ -142,13 +121,13 @@ const FormContent: React.FC<{
                 </Box>
 
                 <Grid container spacing={2}>
-                  <Grid size={{ xs: 12, md: 4 }}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Box>
                       <Typography variant="h6" gutterBottom>
                         {messages.fields.numConferencesDaily}
                       </Typography>
                   <Stack spacing={2}>
-                    <Box display="flex" gap={2} alignItems="center">
+                    <Box className="fill-all-row">
                       <TextField
                         type="number"
                         label={messages.fields.fillAllConferences}
@@ -156,7 +135,7 @@ const FormContent: React.FC<{
                         onChange={(e) => setFillConferencesValue(e.target.value)}
                         InputProps={{ inputProps: { min: 0, step: 1 } }}
                         size="small"
-                        sx={{ flex: 1 }}
+                        className="fill-all-input"
                       />
                       <Button
                         variant="outlined"
@@ -165,7 +144,7 @@ const FormContent: React.FC<{
                           const val = parseInt(fillConferencesValue) || 0;
                           setFieldValue('numConferencesDaily', Array(values.planningHorizonDays).fill(val));
                         }}
-                        sx={{ minWidth: '100px' }}
+                        className="fill-all-button"
                       >
                         Fill All
                       </Button>
@@ -193,7 +172,7 @@ const FormContent: React.FC<{
                                   }}
                                   InputProps={{ inputProps: { min: 0, step: 1 } }}
                                   size="small"
-                                  sx={{ width: '100px' }}
+                                  className="day-input"
                                 />
                               </TableCell>
                             </TableRow>
@@ -205,13 +184,13 @@ const FormContent: React.FC<{
                     </Box>
                   </Grid>
 
-                  <Grid size={{ xs: 12, md: 4 }}>
+                  <Grid size={{ xs: 12, md: 6 }}>
                     <Box>
                       <Typography variant="h6" gutterBottom>
                         {messages.fields.numWorkersDaily}
                       </Typography>
                   <Stack spacing={2}>
-                    <Box display="flex" gap={2} alignItems="center">
+                    <Box className="fill-all-row">
                       <TextField
                         type="number"
                         label={messages.fields.fillAllWorkers}
@@ -219,7 +198,7 @@ const FormContent: React.FC<{
                         onChange={(e) => setFillWorkersValue(e.target.value)}
                         InputProps={{ inputProps: { min: 0, step: 1 } }}
                         size="small"
-                        sx={{ flex: 1 }}
+                        className="fill-all-input"
                       />
                       <Button
                         variant="outlined"
@@ -228,7 +207,7 @@ const FormContent: React.FC<{
                           const val = parseInt(fillWorkersValue) || 0;
                           setFieldValue('numWorkersDaily', Array(values.planningHorizonDays).fill(val));
                         }}
-                        sx={{ minWidth: '100px' }}
+                        className="fill-all-button"
                       >
                         Fill All
                       </Button>
@@ -256,70 +235,7 @@ const FormContent: React.FC<{
                                   }}
                                   InputProps={{ inputProps: { min: 0, step: 1 } }}
                                   size="small"
-                                  sx={{ width: '100px' }}
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </Stack>
-                    </Box>
-                  </Grid>
-
-                  <Grid size={{ xs: 12, md: 4 }}>
-                    <Box>
-                      <Typography variant="h6" gutterBottom>
-                        {messages.fields.purchaseCostsDaily}
-                      </Typography>
-                  <Stack spacing={2}>
-                    <Box display="flex" gap={2} alignItems="center">
-                      <TextField
-                        type="number"
-                        label={messages.fields.fillAllCosts}
-                        value={fillCostsValue}
-                        onChange={(e) => setFillCostsValue(e.target.value)}
-                        InputProps={{ inputProps: { min: 0, step: 1 } }}
-                        size="small"
-                        sx={{ flex: 1 }}
-                      />
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        onClick={() => {
-                          const val = parseInt(fillCostsValue) || 0;
-                          setFieldValue('purchaseCostsDaily', Array(values.planningHorizonDays).fill(val));
-                        }}
-                        sx={{ minWidth: '100px' }}
-                      >
-                        Fill All
-                      </Button>
-                    </Box>
-                    <TableContainer component={Paper}>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell><strong>Day</strong></TableCell>
-                            <TableCell align="right"><strong>Cost (PLN/kg)</strong></TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {values.purchaseCostsDaily.map((val, idx) => (
-                            <TableRow key={idx}>
-                              <TableCell>Day {idx + 1}</TableCell>
-                              <TableCell align="right">
-                                <TextField
-                                  type="number"
-                                  value={val}
-                                  onChange={(e) => {
-                                    const newArray = [...values.purchaseCostsDaily];
-                                    newArray[idx] = parseInt(e.target.value) || 0;
-                                    setFieldValue('purchaseCostsDaily', newArray);
-                                  }}
-                                  InputProps={{ inputProps: { min: 0, step: 1 } }}
-                                  size="small"
-                                  sx={{ width: '100px' }}
+                                  className="day-input"
                                 />
                               </TableCell>
                             </TableRow>
@@ -345,7 +261,7 @@ const FormContent: React.FC<{
                   </AccordionSummary>
                   <AccordionDetails>
                     <Grid container spacing={2}>
-                      <Grid size={{ xs: 12, md: 3 }}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                       <Field name="storageCapacityKg">
                         {({ field, meta }: any) => (
                           <TextField
@@ -360,22 +276,7 @@ const FormContent: React.FC<{
                         )}
                       </Field>
                       </Grid>
-                      <Grid size={{ xs: 12, md: 3 }}>
-                      <Field name="transportCostPln">
-                        {({ field, meta }: any) => (
-                          <TextField
-                            {...field}
-                            type="number"
-                            label={messages.fields.transportCostPln}
-                            fullWidth
-                            InputProps={{ inputProps: { min: 0, step: 0.01 } }}
-                            error={meta.touched && Boolean(meta.error)}
-                            helperText={meta.touched && meta.error}
-                          />
-                        )}
-                      </Field>
-                      </Grid>
-                      <Grid size={{ xs: 12, md: 3 }}>
+                      <Grid size={{ xs: 12, md: 4 }}>
                       <Field name="initialInventoryKg">
                         {({ field, meta }: any) => (
                           <TextField
@@ -390,15 +291,14 @@ const FormContent: React.FC<{
                         )}
                       </Field>
                       </Grid>
-                      <Grid size={{ xs: 12, md: 3 }}>
-                      <Field name="dailyLossFraction">
+                      <Grid size={{ xs: 12, md: 4 }}>
+                      <Field name="officeLocation">
                         {({ field, meta }: any) => (
                           <TextField
                             {...field}
-                            type="number"
-                            label={messages.fields.dailyLossFraction}
+                            type="text"
+                            label={messages.fields.officeLocation}
                             fullWidth
-                            InputProps={{ inputProps: { min: 0, max: 1, step: 0.01 } }}
                             error={meta.touched && Boolean(meta.error)}
                             helperText={meta.touched && meta.error}
                           />
@@ -409,7 +309,7 @@ const FormContent: React.FC<{
                   </AccordionDetails>
                 </Accordion>
 
-                <Box display="flex" justifyContent="flex-end" gap={2}>
+                <Box className="actions-row">
                   <Button type="reset" variant="outlined" disabled={isSubmitting}>
                     {messages.actions.reset}
                   </Button>
@@ -425,7 +325,6 @@ const FormContent: React.FC<{
 const FormPage: React.FC<FormProps> = ({ onSubmit }) => {
   const [fillConferencesValue, setFillConferencesValue] = useState<string>('1');
   const [fillWorkersValue, setFillWorkersValue] = useState<string>('20');
-  const [fillCostsValue, setFillCostsValue] = useState<string>('12');
 
   const handleSubmit = async (values: FormValues, { setSubmitting, resetForm }: any) => {
     try {
@@ -452,8 +351,6 @@ const FormPage: React.FC<FormProps> = ({ onSubmit }) => {
             setFillConferencesValue={setFillConferencesValue}
             fillWorkersValue={fillWorkersValue}
             setFillWorkersValue={setFillWorkersValue}
-            fillCostsValue={fillCostsValue}
-            setFillCostsValue={setFillCostsValue}
           />
         )}
       </Formik>

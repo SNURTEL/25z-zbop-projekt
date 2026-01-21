@@ -1,14 +1,38 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api_models import DayPrediction, DayPredictionV2, PredictionRequest, PredictionRequest2
+from database import engine
+from models import Base
+from routers import (
+    auth_router,
+    offices_router,
+    optimization_router,
+    orders_router,
+    predictions_router,
+    settings_router,
+)
 from solver import generate_mock_predictions, generate_predictions
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan: create tables on startup."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+
 app = FastAPI(
-    title="Coffee Consumption Prediction API",
-    description="API for predicting daily coffee consumption based on capacity and usage parameters",
-    version="1.0.0",
+    title="Coffee Inventory Optimization API",
+    description="API for coffee inventory planning and optimization using MILP solver",
+    version="2.0.0",
+    lifespan=lifespan,
 )
+
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -16,6 +40,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Register routers
+app.include_router(auth_router)
+app.include_router(offices_router)
+app.include_router(orders_router)
+app.include_router(optimization_router)
+app.include_router(settings_router)
+app.include_router(predictions_router)  # Legacy endpoint
 
 
 @app.get("/")

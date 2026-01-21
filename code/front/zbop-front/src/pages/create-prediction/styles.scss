@@ -1,95 +1,177 @@
+// Create Prediction page styles
+
 .create-prediction-page {
-  min-height: 100vh;
-  padding: 2rem 0;
-  width: 100%;
-  
+  padding: 24px 0;
+
   .page-header {
-    text-align: center;
-    margin-bottom: 3rem;
-    
-    h1 {
-      color: #1976d2;
+    margin-bottom: 32px;
+
+    .page-title {
+      font-size: 28px;
+      font-weight: 700;
+      color: #1a1a2e;
+      margin-bottom: 8px;
+    }
+
+    .page-subtitle {
+      font-size: 16px;
+      color: #6b7280;
+    }
+  }
+
+  // Alert styles
+  .alert {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px 20px;
+    border-radius: 8px;
+    margin-bottom: 24px;
+
+    .alert-icon {
+      font-size: 18px;
+    }
+
+    .alert-message {
+      flex: 1;
+      font-size: 14px;
+    }
+
+    .alert-action {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      font-size: 13px;
       font-weight: 600;
-      margin-bottom: 1rem;
+      cursor: pointer;
+      transition: background-color 0.2s;
     }
-    
-    .MuiTypography-subtitle1 {
-      max-width: 600px;
-      margin: 0 auto;
-      line-height: 1.6;
+
+    &.alert-success {
+      background-color: #d1fae5;
+      border: 1px solid #a7f3d0;
+
+      .alert-icon {
+        color: #065f46;
+      }
+
+      .alert-message {
+        color: #065f46;
+      }
+
+      .alert-action {
+        background-color: #059669;
+        color: #ffffff;
+
+        &:hover {
+          background-color: #047857;
+        }
+      }
+    }
+
+    &.alert-error {
+      background-color: #fee2e2;
+      border: 1px solid #fecaca;
+
+      .alert-icon {
+        color: #991b1b;
+      }
+
+      .alert-message {
+        color: #991b1b;
+      }
     }
   }
-  
+
   .form-section {
-    margin-bottom: 2rem;
-    
-    .form-page {
-      background-color: #fff;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
-      border: 1px solid #e0e0e0;
-    }
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    padding: 24px;
+    margin-bottom: 24px;
   }
-  
+
   .section-divider {
-    margin: 3rem 0;
-    border-color: #e0e0e0;
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 32px 0;
   }
-  
+
   .results-section {
-    margin-top: 2rem;
-    
+    margin-top: 24px;
+
     .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 48px 0;
+
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e5e7eb;
+        border-top-color: #667eea;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      .loading-text {
+        margin-top: 16px;
+        font-size: 14px;
+        color: #6b7280;
+      }
+    }
+
+    .no-results {
       text-align: center;
-      padding: 3rem 0;
-      
-      h2 {
-        color: #1976d2;
-        margin-bottom: 1rem;
-      }
-      
-      .MuiTypography-body1 {
-        color: #666;
-        font-style: italic;
-      }
+      font-size: 14px;
+      color: #6b7280;
+      padding: 24px 0;
     }
   }
 }
 
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+// Responsive styles
 @media (max-width: 768px) {
   .create-prediction-page {
-    padding: 1rem 0;
-    
+    padding: 16px 0;
+
     .page-header {
-      margin-bottom: 2rem;
-      
-      h1 {
-        font-size: 2rem;
+      margin-bottom: 24px;
+
+      .page-title {
+        font-size: 24px;
+      }
+
+      .page-subtitle {
+        font-size: 14px;
       }
     }
-    
+
+    .alert {
+      flex-wrap: wrap;
+      padding: 12px 16px;
+
+      .alert-action {
+        width: 100%;
+        margin-top: 8px;
+        text-align: center;
+      }
+    }
+
     .form-section {
-      .form-page {
-        padding: 1.5rem;
-        margin: 0 -0.5rem;
-      }
+      padding: 16px;
     }
-    
+
     .section-divider {
-      margin: 2rem 0;
-    }
-    
-    .results-section {
-      margin-top: 1rem;
-      
-      .loading-state {
-        padding: 2rem 0;
-        
-        h2 {
-          font-size: 1.5rem;
-        }
-      }
+      margin: 24px 0;
     }
   }
 }
@@ -97,19 +179,18 @@
 @media (max-width: 480px) {
   .create-prediction-page {
     .page-header {
-      h1 {
-        font-size: 1.75rem;
+      .page-title {
+        font-size: 22px;
       }
-      
-      .MuiTypography-subtitle1 {
-        font-size: 0.95rem;
+
+      .page-subtitle {
+        font-size: 13px;
       }
     }
-    
+
     .form-section {
-      .form-page {
-        padding: 1rem;
-      }
+      padding: 12px;
+      border-radius: 8px;
     }
   }
 }

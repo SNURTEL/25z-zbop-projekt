@@ -1,49 +1,48 @@
 import { FormValues } from '../../components/form/Form';
 import { PredictionData } from '../../components/predictionResults';
+import { optimizationService } from '../../services/optimization';
+import { PredictionRequestV2 } from '../../types';
 
-// API response type matching the actual backend response structure
-type ApiPredictionResponse = {
-  day: number;
-  orderAmount: number;
-  consumedAmount: number;
-  remainingAmount: number;
-  unit: string;
-}[];
+// Default values according to OpenAPI spec
+const DEFAULT_DAILY_LOSS_FRACTION = 0.1;
+const DEFAULT_TRANSPORT_COST = 100.0;
 
 // Function to make API call for predictions
 export async function getPredictionData(formData: FormValues): Promise<PredictionData[]> {
   try {
-    // Prepare request payload matching the v2 API schema
-    const requestBody = {
-      storage_capacity_kg: Number(formData.storageCapacityKg) || 150,
-      purchase_costs_pln_per_kg_daily: formData.purchaseCostsDaily,
-      transport_cost_pln: Number(formData.transportCostPln) || 100,
-      num_conferences_daily: formData.numConferencesDaily,
-      num_workers_daily: formData.numWorkersDaily,
-      initial_inventory_kg: Number(formData.initialInventoryKg) || 40,
-      daily_loss_fraction: Number(formData.dailyLossFraction) || 0.1,
-      planning_horizon_days: formData.planningHorizonDays
-    };
-
-    // Validate that we have valid numbers
-    if (requestBody.planning_horizon_days <= 0) {
+    // Validate input
+    if (formData.planningHorizonDays <= 0) {
       throw new Error('Please provide valid planning horizon');
     }
 
-    // Make API call to backend v2 endpoint
-    const response = await fetch(`http://localhost:8000/create_predictions_v2`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody)
-    });
-
-    if (!response.ok) {
-      throw new Error(`API request failed with status ${response.status}: ${response.statusText}`);
+    if (formData.numConferencesDaily.length !== formData.planningHorizonDays) {
+      throw new Error('Number of conferences array must match planning horizon');
     }
 
-    const apiData: ApiPredictionResponse = await response.json();
+    if (formData.numWorkersDaily.length !== formData.planningHorizonDays) {
+      throw new Error('Number of workers array must match planning horizon');
+    }
+
+    // Generate default purchase costs if not provided
+    // Using realistic values that vary by day
+    const defaultPurchaseCosts = Array(formData.planningHorizonDays).fill(0).map(() => 
+      Math.round((10 + Math.random() * 10) * 100) / 100
+    );
+
+    // Prepare request payload matching the OpenAPI PredictionRequestV2 schema exactly
+    const requestBody: PredictionRequestV2 = {
+      storage_capacity_kg: Number(formData.storageCapacityKg) || 150,
+      purchase_costs_pln_per_kg_daily: defaultPurchaseCosts,
+      transport_cost_pln: DEFAULT_TRANSPORT_COST,
+      num_conferences_daily: formData.numConferencesDaily.map(Number),
+      num_workers_daily: formData.numWorkersDaily.map(Number),
+      initial_inventory_kg: Number(formData.initialInventoryKg) || 40,
+      daily_loss_fraction: DEFAULT_DAILY_LOSS_FRACTION,
+      planning_horizon_days: formData.planningHorizonDays
+    };
+
+    // Make API call using the optimization service
+    const apiData = await optimizationService.createPredictionsV2(requestBody);
 
     // Transform API response to match our frontend data structure
     return apiData.map((item) => ({
@@ -58,4 +57,4 @@ export async function getPredictionData(formData: FormValues): Promise<Predictio
     console.error('Failed to fetch prediction data:', error);
     throw new Error(`Failed to generate predictions: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
-};
+}

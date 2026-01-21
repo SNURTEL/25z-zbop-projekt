@@ -1,0 +1,1343 @@
+openapi: 3.0.3
+info:
+  title: Coffee Inventory Planning API
+  description: |
+    API dla systemu planowania zapasów kawy w biurowcach.
+    
+    System wspiera:
+    - Optymalizację zamówień kawy z wykorzystaniem solvera CPLEX
+    - Zarządzanie biurowcami i ich magazynami
+    - Śledzenie zamówień i korekt
+    - Autentykację użytkowników (JWT)
+  version: 2.0.0
+  contact:
+    name: Zespół 2
+    
+servers:
+  - url: http://localhost:8000
+    description: Development server
+  - url: http://api:8000
+    description: Docker container
+
+tags:
+  - name: auth
+    description: Autentykacja i zarządzanie sesją
+  - name: offices
+    description: Zarządzanie biurowcami
+  - name: orders
+    description: Zarządzanie zamówieniami kawy
+  - name: optimization
+    description: Optymalizacja planowania zamówień
+  - name: settings
+    description: Parametry systemowe
+  - name: predictions
+    description: Legacy endpoints (kompatybilność wsteczna)
+
+# ============================================
+# SECURITY
+# ============================================
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token uzyskany z /auth/login
+
+  # ==========================================
+  # SCHEMAS
+  # ==========================================
+  schemas:
+    # ---------- Common ----------
+    ErrorResponse:
+      type: object
+      required:
+        - detail
+      properties:
+        detail:
+          type: string
+          description: Opis błędu
+          example: "Resource not found"
+
+    ValidationError:
+      type: object
+      properties:
+        detail:
+          type: array
+          items:
+            type: object
+            properties:
+              loc:
+                type: array
+                items:
+                  type: string
+              msg:
+                type: string
+              type:
+                type: string
+
+    # ---------- Auth ----------
+    UserRegister:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 8
+          example: "securePassword123"
+        first_name:
+          type: string
+          maxLength: 100
+          example: "Jan"
+        last_name:
+          type: string
+          maxLength: 100
+          example: "Kowalski"
+
+    UserLogin:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        password:
+          type: string
+          format: password
+          example: "securePassword123"
+
+    TokenResponse:
+      type: object
+      required:
+        - access_token
+        - token_type
+      properties:
+        access_token:
+          type: string
+          description: JWT access token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        token_type:
+          type: string
+          example: "bearer"
+        expires_in:
+          type: integer
+          description: Czas wygaśnięcia tokenu w sekundach
+          example: 1800
+
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          format: email
+          example: "user@example.com"
+        first_name:
+          type: string
+          example: "Jan"
+        last_name:
+          type: string
+          example: "Kowalski"
+        role:
+          type: string
+          enum: [admin, manager, user]
+          example: "user"
+        office_id:
+          type: integer
+          nullable: true
+          example: 1
+        is_active:
+          type: boolean
+          example: true
+        created_at:
+          type: string
+          format: date-time
+
+    # ---------- Office ----------
+    OfficeCreate:
+      type: object
+      required:
+        - name
+        - max_storage_capacity
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "Biurowiec Centrum"
+        address:
+          type: string
+          example: "ul. Marszałkowska 1, Warszawa"
+        max_storage_capacity:
+          type: number
+          format: float
+          minimum: 0
+          description: "V_max - maksymalna pojemność magazynu [kg]"
+          example: 100.0
+        daily_loss_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          default: 0.1
+          description: "alpha - współczynnik dziennej straty kawy"
+          example: 0.1
+
+    OfficeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          maxLength: 255
+          example: "Biurowiec Centrum"
+        address:
+          type: string
+          example: "ul. Marszałkowska 1, Warszawa"
+        max_storage_capacity:
+          type: number
+          format: float
+          minimum: 0
+          description: "V_max - maksymalna pojemność magazynu [kg]"
+          example: 100.0
+        daily_loss_rate:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: "alpha - współczynnik dziennej straty kawy"
+          example: 0.1
+
+    OfficeResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Biurowiec Centrum"
+        address:
+          type: string
+          example: "ul. Marszałkowska 1, Warszawa"
+        max_storage_capacity:
+          type: number
+          format: float
+          example: 100.0
+        daily_loss_rate:
+          type: number
+          format: float
+          example: 0.1
+        is_active:
+          type: boolean
+          example: true
+
+    OfficeDetailResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "Biurowiec Centrum"
+        address:
+          type: string
+          example: "ul. Marszałkowska 1, Warszawa"
+        max_storage_capacity:
+          type: number
+          format: float
+          example: 100.0
+        daily_loss_rate:
+          type: number
+          format: float
+          example: 0.1
+        is_active:
+          type: boolean
+          example: true
+        current_inventory:
+          type: number
+          format: float
+          nullable: true
+          description: "Aktualny stan magazynu [kg]"
+          example: 45.5
+        pending_orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderSummary'
+
+    # ---------- Order ----------
+    OrderCreate:
+      type: object
+      required:
+        - office_id
+        - order_date
+        - quantity_kg
+        - unit_price
+        - transport_cost
+      properties:
+        office_id:
+          type: integer
+          example: 1
+        distributor_id:
+          type: integer
+          nullable: true
+          example: 1
+        order_date:
+          type: string
+          format: date
+          example: "2026-01-15"
+        delivery_date:
+          type: string
+          format: date
+          example: "2026-01-16"
+        quantity_kg:
+          type: number
+          format: float
+          minimum: 0
+          description: "x_{d,b,t} - zamówiona ilość [kg]"
+          example: 25.0
+        unit_price:
+          type: number
+          format: float
+          minimum: 0
+          description: "Cena jednostkowa [PLN/kg]"
+          example: 45.0
+        transport_cost:
+          type: number
+          format: float
+          minimum: 0
+          description: "Koszt transportu [PLN]"
+          example: 50.0
+
+    OrderResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        optimization_request_id:
+          type: integer
+          nullable: true
+          example: 1
+        office_id:
+          type: integer
+          example: 1
+        distributor_id:
+          type: integer
+          nullable: true
+          example: 1
+        order_date:
+          type: string
+          format: date
+          example: "2026-01-15"
+        delivery_date:
+          type: string
+          format: date
+          example: "2026-01-16"
+        quantity_kg:
+          type: number
+          format: float
+          example: 25.0
+        unit_price:
+          type: number
+          format: float
+          example: 45.0
+        transport_cost:
+          type: number
+          format: float
+          example: 50.0
+        total_cost:
+          type: number
+          format: float
+          description: "Łączny koszt zamówienia [PLN]"
+          example: 1175.0
+        status:
+          type: string
+          enum: [planned, confirmed, delivered, cancelled]
+          example: "planned"
+        created_at:
+          type: string
+          format: date-time
+
+    OrderSummary:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        order_date:
+          type: string
+          format: date
+          example: "2026-01-15"
+        quantity_kg:
+          type: number
+          format: float
+          example: 25.0
+        status:
+          type: string
+          enum: [planned, confirmed, delivered, cancelled]
+          example: "planned"
+
+    OrderCorrectionCreate:
+      type: object
+      required:
+        - quantity_increase
+        - quantity_decrease
+      properties:
+        quantity_increase:
+          type: number
+          format: float
+          minimum: 0
+          default: 0
+          description: "r^+_{d,b,t} - zwiększenie zamówienia [kg]"
+          example: 5.0
+        quantity_decrease:
+          type: number
+          format: float
+          minimum: 0
+          default: 0
+          description: "r^-_{d,b,t} - zmniejszenie zamówienia [kg]"
+          example: 0.0
+        reason:
+          type: string
+          example: "Zwiększone zapotrzebowanie z powodu konferencji"
+
+    OrderCorrectionResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        original_order_id:
+          type: integer
+          example: 1
+        optimization_request_id:
+          type: integer
+          example: 1
+        correction_date:
+          type: string
+          format: date-time
+        quantity_increase:
+          type: number
+          format: float
+          example: 5.0
+        quantity_decrease:
+          type: number
+          format: float
+          example: 0.0
+        correction_cost:
+          type: number
+          format: float
+          description: "Koszt korekty [PLN]"
+          example: 25.0
+        reason:
+          type: string
+          example: "Zwiększone zapotrzebowanie z powodu konferencji"
+
+    # ---------- Optimization ----------
+    OptimizationRequestCreate:
+      type: object
+      required:
+        - office_id
+        - planning_horizon_start
+        - planning_horizon_days
+        - initial_inventory
+        - purchase_costs_daily
+        - num_workers_daily
+        - num_conferences_daily
+        - transport_cost
+      properties:
+        office_id:
+          type: integer
+          example: 1
+        planning_horizon_start:
+          type: string
+          format: date
+          example: "2026-01-15"
+        planning_horizon_days:
+          type: integer
+          minimum: 1
+          maximum: 30
+          example: 7
+        initial_inventory:
+          type: number
+          format: float
+          minimum: 0
+          description: "I_0 - stan magazynu na początku [kg]"
+          example: 10.0
+        purchase_costs_daily:
+          type: array
+          items:
+            type: number
+            format: float
+          description: "P_t - koszty zakupu kawy dla każdego dnia [PLN/kg]"
+          example: [35, 5, 150, 60, 37, 35, 36]
+        num_workers_daily:
+          type: array
+          items:
+            type: integer
+          description: "Liczba pracowników dla każdego dnia"
+          example: [15, 12, 10, 30, 18, 0, 0]
+        num_conferences_daily:
+          type: array
+          items:
+            type: integer
+          description: "Liczba konferencji dla każdego dnia"
+          example: [2, 0, 1, 8, 3, 0, 0]
+        transport_cost:
+          type: number
+          format: float
+          minimum: 0
+          description: "C - koszt transportu [PLN]"
+          example: 50.0
+        is_correction_mode:
+          type: boolean
+          default: false
+          description: "Czy tryb korekty istniejących zamówień"
+
+    OptimizationRequestResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        office_id:
+          type: integer
+          example: 1
+        planning_horizon_start:
+          type: string
+          format: date
+          example: "2026-01-15"
+        planning_horizon_end:
+          type: string
+          format: date
+          example: "2026-01-21"
+        initial_inventory:
+          type: number
+          format: float
+          example: 10.0
+        total_cost:
+          type: number
+          format: float
+          description: "Całkowity koszt obliczony przez solver [PLN]"
+          example: 1250.0
+        solver_status:
+          type: string
+          enum: [OPTIMAL, INFEASIBLE, UNBOUNDED, ERROR]
+          example: "OPTIMAL"
+        solve_time_ms:
+          type: integer
+          description: "Czas rozwiązywania [ms]"
+          example: 45
+        is_correction_mode:
+          type: boolean
+          example: false
+        created_at:
+          type: string
+          format: date-time
+        orders:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderResponse'
+        inventory_projections:
+          type: array
+          items:
+            $ref: '#/components/schemas/InventorySnapshot'
+
+    InventorySnapshot:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-01-15"
+        inventory_level:
+          type: number
+          format: float
+          description: "I_{b,t} - stan magazynu na koniec dnia [kg]"
+          example: 35.5
+        demand_fulfilled:
+          type: number
+          format: float
+          description: "Zaspokojone zapotrzebowanie [kg]"
+          example: 5.4
+        loss_amount:
+          type: number
+          format: float
+          description: "Strata dzienna [kg]"
+          example: 1.0
+        deliveries_received:
+          type: number
+          format: float
+          description: "Suma dostaw otrzymanych [kg]"
+          example: 25.0
+
+    # ---------- Settings ----------
+    SystemParameter:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        parameter_name:
+          type: string
+          example: "default_transport_cost"
+        parameter_value:
+          type: string
+          example: "50.0"
+        description:
+          type: string
+          example: "Domyślny koszt transportu [PLN]"
+        updated_at:
+          type: string
+          format: date-time
+
+    SystemParameterUpdate:
+      type: object
+      required:
+        - parameter_value
+      properties:
+        parameter_value:
+          type: string
+          example: "75.0"
+        description:
+          type: string
+          nullable: true
+          example: "Zaktualizowany opis parametru"
+
+    # ---------- Legacy Predictions ----------
+    PredictionRequestV2:
+      type: object
+      required:
+        - storage_capacity_kg
+        - purchase_costs_pln_per_kg_daily
+        - transport_cost_pln
+        - num_conferences_daily
+        - num_workers_daily
+        - initial_inventory_kg
+        - daily_loss_fraction
+        - planning_horizon_days
+      properties:
+        storage_capacity_kg:
+          type: integer
+          minimum: 1
+          example: 150
+        purchase_costs_pln_per_kg_daily:
+          type: array
+          items:
+            type: number
+          example: [12.0, 10.0, 14.0, 10.0, 13.0, 11.0, 15.0]
+        transport_cost_pln:
+          type: number
+          example: 100.0
+        num_conferences_daily:
+          type: array
+          items:
+            type: integer
+          example: [1, 0, 3, 7, 0, 0, 0]
+        num_workers_daily:
+          type: array
+          items:
+            type: integer
+          example: [50, 90, 60, 50, 31, 15, 15]
+        initial_inventory_kg:
+          type: number
+          example: 40.0
+        daily_loss_fraction:
+          type: number
+          example: 0.1
+        planning_horizon_days:
+          type: integer
+          minimum: 1
+          example: 7
+
+    DayPredictionV2:
+      type: object
+      properties:
+        day:
+          type: integer
+          example: 1
+        orderAmount:
+          type: number
+          format: float
+          example: 25.0
+        consumedAmount:
+          type: number
+          format: float
+          example: 5.4
+        remainingAmount:
+          type: number
+          format: float
+          example: 35.5
+        unit:
+          type: string
+          example: "kg"
+
+# ============================================
+# PATHS
+# ============================================
+paths:
+  # ---------- Auth ----------
+  /auth/register:
+    post:
+      tags:
+        - auth
+      summary: Rejestracja nowego użytkownika
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserRegister'
+      responses:
+        '201':
+          description: Użytkownik utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Email już istnieje
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Błąd walidacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Logowanie użytkownika
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserLogin'
+      responses:
+        '200':
+          description: Pomyślne logowanie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Nieprawidłowe dane logowania
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      tags:
+        - auth
+      summary: Pobranie danych zalogowanego użytkownika
+      responses:
+        '200':
+          description: Dane użytkownika
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------- Offices ----------
+  /offices:
+    get:
+      tags:
+        - offices
+      summary: Lista wszystkich biurowców
+      responses:
+        '200':
+          description: Lista biurowców
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OfficeResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - offices
+      summary: Utworzenie nowego biurowca
+      description: Wymaga roli vendor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeCreate'
+      responses:
+        '201':
+          description: Biurowiec utworzony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficeResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Błąd walidacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  /offices/{office_id}:
+    get:
+      tags:
+        - offices
+      summary: Szczegóły biurowca z aktualnym stanem magazynu
+      parameters:
+        - name: office_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Szczegóły biurowca
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficeDetailResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Biurowiec nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - offices
+      summary: Aktualizacja biurowca
+      description: Wymaga roli vendor
+      parameters:
+        - name: office_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OfficeUpdate'
+      responses:
+        '200':
+          description: Biurowiec zaktualizowany
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfficeResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Biurowiec nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - offices
+      summary: Deaktywacja biurowca
+      description: Soft-delete (dezaktywacja) biurowca. Wymaga roli vendor
+      parameters:
+        - name: office_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Biurowiec zdezaktywowany
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Biurowiec nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------- Orders ----------
+  /orders:
+    get:
+      tags:
+        - orders
+      summary: Lista zamówień z filtrowaniem
+      parameters:
+        - name: office_id
+          in: query
+          description: Filtruj po ID biurowca
+          schema:
+            type: integer
+        - name: status
+          in: query
+          description: Filtruj po statusie
+          schema:
+            type: string
+            enum: [planned, confirmed, delivered, cancelled]
+        - name: start_date
+          in: query
+          description: Data początkowa (włącznie)
+          schema:
+            type: string
+            format: date
+        - name: end_date
+          in: query
+          description: Data końcowa (włącznie)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Lista zamówień
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{order_order_id}:
+    get:
+      tags:
+        - orders
+      summary: Szczegóły zamówienia
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Szczegóły zamówienia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Zamówienie nie znalezione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{order_id}/status:
+    patch:
+      tags:
+        - orders
+      summary: Aktualizacja statusu zamówienia
+      description: Wymaga roli vendor
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: new_status
+          in: query
+          required: true
+          description: "Nowy status: pending/confirmed/delivered/cancelled"
+          schema:
+            type: string
+            enum: [pending, confirmed, delivered, cancelled]
+      responses:
+        '200':
+          description: Status zaktualizowany
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Zamówienie nie znalezione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orders/{order_order_id}/corrections:
+    get:
+      tags:
+        - orders
+      summary: Lista korekt dla zamówienia
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Lista korekt
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OrderCorrectionResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Zamówienie nie znalezione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - orders
+      summary: Utworzenie korekty zamówienia
+      description: Wymaga roli vendor
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrderCorrectionCreate'
+      responses:
+        '201':
+          description: Korekta utworzona
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderCorrectionResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Zamówienie nie znalezione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Błąd walidacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+
+  # ---------- Optimization ----------
+  /optimization/requests:
+    get:
+      tags:
+        - optimization
+      summary: Lista żądań optymalizacji
+      parameters:
+        - name: office_id
+          in: query
+          description: Filtruj po ID biurowca
+          schema:
+            type: integer
+        - name: limit
+          in: query
+          description: Maksymalna liczba wyników (1-100)
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+            maximum: 100
+      responses:
+        '200':
+          description: Lista żądań optymalizacji
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/OptimizationRequestResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    post:
+      tags:
+        - optimization
+      summary: Utworzenie nowego żądania optymalizacji
+      description: |
+        Uruchamia solver CPLEX w celu wyznaczenia optymalnego harmonogramu zamówień.
+        Wymaga roli vendor.
+        
+        Zapotrzebowanie na kawę jest szacowane wg wzoru:
+        D_t = 0.25kg × liczba_pracowników × 1.2^liczba_konferencji
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OptimizationRequestCreate'
+      responses:
+        '201':
+          description: Optymalizacja wykonana
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizationRequestResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Błąd walidacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+        '500':
+          description: Błąd solvera (INFEASIBLE, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /optimization/requests/{request_id}:
+    get:
+      tags:
+        - optimization
+      summary: Szczegóły żądania optymalizacji z wynikami
+      parameters:
+        - name: request_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Szczegóły optymalizacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OptimizationRequestResponse'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Żądanie nie znalezione
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------- Settings ----------
+  /settings:
+    get:
+      tags:
+        - settings
+      summary: Lista parametrów systemowych
+      description: Wymaga roli vendor
+      responses:
+        '200':
+          description: Lista parametrów
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SystemParameter'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /settings/{param_name}:
+    get:
+      tags:
+        - settings
+      summary: Pobranie parametru systemowego
+      description: Wymaga roli vendor
+      parameters:
+        - name: param_name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Parametr systemowy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemParameter'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Parametr nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - settings
+      summary: Aktualizacja parametru systemowego
+      description: Wymaga roli vendor
+      parameters:
+        - name: param_name
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SystemParameterUpdate'
+      responses:
+        '200':
+          description: Parametr zaktualizowany
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SystemParameter'
+        '401':
+          description: Brak autoryzacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Parametr nie znaleziony
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ---------- Legacy Predictions (kompatybilność wsteczna) ----------
+  /create_predictions_v2:
+    post:
+      tags:
+        - predictions
+      summary: "[LEGACY] Generowanie predykcji zamówień"
+      description: |
+        Endpoint zachowany dla kompatybilności wstecznej.
+        Zalecane jest używanie /optimization/requests.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PredictionRequestV2'
+      responses:
+        '200':
+          description: Lista predykcji dziennych
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DayPredictionV2'
+        '422':
+          description: Błąd walidacji
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'

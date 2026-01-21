@@ -1,76 +1,92 @@
 import React, { useState } from 'react';
-import { Box, Typography, Divider } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import Form, { FormValues } from '../../components/form/Form';
 import PredictionResult, { PredictionData } from '../../components/predictionResults/PredictionResult';
 import { messages } from '../../components/form/messages';
 import './styles.scss';
-import CircularProgress from '@mui/material/CircularProgress';
 import { getPredictionData } from './utils';
 
-
-
 const CreatePrediction: React.FC = () => {
+  const navigate = useNavigate();
   const [predictionData, setPredictionData] = useState<PredictionData[] | null>(null);
   const [inputData, setInputData] = useState<FormValues | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const handleFormSubmit = async (values: FormValues) => {
     setIsLoading(true);
+    setSuccessMessage(null);
+    setErrorMessage(null);
+    console.log("aaSubmitting form with values:", values);
     try {
       const predictions = await getPredictionData(values);
       setPredictionData(predictions);
       setInputData(values);
+      setSuccessMessage(messages.createPrediction.successMessage);
     } catch (error) {
       console.error('Error generating predictions:', error);
-      // In a real app, you would show an error message to the user
+      setErrorMessage(messages.createPrediction.errorMessage);
     } finally {
       setIsLoading(false);
     }
   };
 
-  return (
-    <Box sx={{ width: '100%', maxWidth: '2400px', margin: '0 auto', px: { xs: 2, sm: 3, md: 4 } }}>
-      <Box className="create-prediction-page">
-      <Box className="page-header">
-        <Typography variant="h3" component="h1" gutterBottom>
-          {messages.createPrediction.title}
-        </Typography>
-        <Typography variant="subtitle1" color="text.secondary" paragraph>
-          {messages.createPrediction.subtitle}
-        </Typography>
-      </Box>
+  const handleGoToOrders = () => {
+    navigate('/orders');
+  };
 
-      <Box className="form-section">
+  return (
+    <div className="create-prediction-page">
+      <div className="page-header">
+        <h1 className="page-title">{messages.createPrediction.title}</h1>
+        <p className="page-subtitle">{messages.createPrediction.subtitle}</p>
+      </div>
+
+      {successMessage && (
+        <div className="alert alert-success">
+          <span className="alert-icon">✓</span>
+          <span className="alert-message">{successMessage}</span>
+          <button className="alert-action" onClick={handleGoToOrders}>
+            {messages.createPrediction.goToOrders}
+          </button>
+        </div>
+      )}
+
+      {errorMessage && (
+        <div className="alert alert-error">
+          <span className="alert-icon">⚠️</span>
+          <span className="alert-message">{errorMessage}</span>
+        </div>
+      )}
+
+      <div className="form-section">
         <Form onSubmit={handleFormSubmit} />
-      </Box>
+      </div>
 
       {(predictionData || isLoading) && (
         <>
-          <Divider className="section-divider" />
-          <Box className="results-section">
+          <hr className="section-divider" />
+          <div className="results-section">
             {isLoading ? (
-              <Box className="loading-state">
-                <CircularProgress />
-              </Box>
+              <div className="loading-state">
+                <div className="loading-spinner" />
+                <p className="loading-text">Generowanie predykcji...</p>
+              </div>
             ) : predictionData && predictionData.length > 0 && inputData ? (
               <PredictionResult 
                 data={predictionData}
                 demandData={inputData.numConferencesDaily.map((conf, i) => 
                   conf * 0.5 + inputData.numWorkersDaily[i] * 0.025
                 )}
-                purchaseCosts={inputData.purchaseCostsDaily}
-                transportCost={Number(inputData.transportCostPln) || 0}
               />
             ) : (
-              <Typography variant="body1" color="text.secondary">
-                {messages.predictionResult.noResults}
-              </Typography>
+              <p className="no-results">{messages.predictionResult.noResults}</p>
             )}
-          </Box>
+          </div>
         </>
       )}
-      </Box>
-    </Box>
+    </div>
   );
 };
 

@@ -1,0 +1,58 @@
+// Orders pages messages
+
+export const ordersMessages = {
+  list: {
+    title: 'Moje zamówienia',
+    subtitle: 'Przeglądaj i zarządzaj swoimi zamówieniami kawy',
+    emptyState: {
+      title: 'Brak zamówień',
+      description: 'Nie masz jeszcze żadnych zamówień. Stwórz swoje pierwsze zamówienie!',
+      createButton: 'Stwórz zamówienie',
+    },
+    loading: 'Ładowanie zamówień...',
+    error: 'Nie udało się załadować zamówień',
+    retry: 'Spróbuj ponownie',
+  },
+  card: {
+    orderDate: 'Data zamówienia',
+    deliveryDate: 'Data dostawy',
+    quantity: 'Ilość',
+    totalCost: 'Koszt całkowity',
+    status: 'Status',
+    editButton: 'Popraw zamówienie',
+    viewDetails: 'Zobacz szczegóły',
+  },
+  status: {
+    planned: 'Zaplanowane',
+    confirmed: 'Potwierdzone',
+    delivered: 'Dostarczone',
+    cancelled: 'Anulowane',
+  },
+  edit: {
+    title: 'Edycja zamówienia',
+    subtitle: 'Wprowadź korektę do zamówienia',
+    orderDetails: 'Szczegóły zamówienia',
+    correctionForm: 'Formularz korekty',
+    correctionHistory: 'Historia korekt',
+    noCorrections: 'Brak wcześniejszych korekt',
+    increaseLabel: 'Nowa ilość osób',
+    decreaseLabel: 'Nowa ilość konferencji',
+    reasonLabel: 'Powód korekty',
+    reasonPlaceholder: 'Podaj powód korekty...',
+    submitButton: 'Zapisz korektę',
+    cancelButton: 'Anuluj',
+    backButton: 'Powrót do listy',
+    successMessage: 'Korekta została zapisana',
+    errorMessage: 'Nie udało się zapisać korekty',
+    loadingOrder: 'Ładowanie zamówienia...',
+    orderNotFound: 'Zamówienie nie zostało znalezione',
+    currentQuantity: 'Aktualna ilość',
+    newQuantity: 'Nowa ilość po korekcie',
+  },
+  validation: {
+    increaseMin: 'Wartość musi być nieujemna',
+    decreaseMin: 'Wartość musi być nieujemna',
+    decreaseMax: 'Nie można zmniejszyć o więcej niż aktualna ilość',
+    bothZero: 'Przynajmniej jedna wartość musi być większa od zera',
+  },
+};

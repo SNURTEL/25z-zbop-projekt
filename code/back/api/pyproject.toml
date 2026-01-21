@@ -1,8 +1,7 @@
 [project]
 name = "api"
 version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
+description = "Coffee Inventory Planning API"
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "cplex>=22.1.2.0",
@@ -14,7 +13,23 @@ dependencies = [
     "pandas>=2.3.3",
     "plotly>=6.5.0",
     "uvicorn[standard]>=0.24.0",
+    # Database & ORM
+    "sqlalchemy>=2.0.0",
+    "alembic>=1.13.0",
+    "asyncpg>=0.29.0",
+    # Authentication
+    "python-jose[cryptography]>=3.3.0",
+    "passlib>=1.7.4",
+    "bcrypt>=4.0.0,<4.1.0",  # Pin bcrypt for passlib compatibility
+    # Configuration
+    "pydantic-settings>=2.0.0",
 ]
+
+[tool.setuptools]
+py-modules = []
+
+[tool.setuptools.packages.find]
+include = ["model*", "models*", "routers*", "schemas*", "services*", "middleware*", "repositories*", "db_handle*"]
 
 [dependency-groups]
 dev = [

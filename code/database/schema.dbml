@@ -1,0 +1,150 @@
+// =============================================
+// SCHEMAT BAZY DANYCH - SYSTEM PLANOWANIA ZAPASÓW KAWY
+// Format: DBML (Database Markup Language)
+// =============================================
+
+// =============================================
+// UŻYTKOWNICY
+// =============================================
+
+Table users {
+  id int [pk, increment]
+  email varchar(255) [unique, not null]
+  password_hash varchar(255) [not null]
+  first_name varchar(100)
+  last_name varchar(100)
+  role list [default: 'user', note: 'admin,manager,user,vendor']
+  office_id int [ref: > offices.id, note: 'Przypisany biurowiec (dla zarządców)']
+  is_active boolean [default: true]
+  last_login timestamp
+  
+  indexes {
+    email
+    role
+  }
+}
+
+// =============================================
+// ENCJE PODSTAWOWE
+// =============================================
+
+Table distributors {
+  id int [pk, increment]
+  name varchar(255) [not null]
+  description text
+  is_active boolean [default: true]
+  
+  indexes {
+    name
+  }
+}
+
+Table offices {
+  id int [pk, increment]
+  name varchar(255) [not null]
+  address text
+  max_storage_capacity decimal(10,2) [not null, note: 'V_max - maksymalna pojemność magazynu [kg]']
+  daily_loss_rate decimal(5,4) [default: 0.1, note: 'alpha - współczynnik dziennej straty kawy (domyślnie 10%)']
+  is_active boolean [default: true]
+  
+  indexes {
+    name
+  }
+}
+
+// =============================================
+// ZAMÓWIENIA I KOREKTY
+// =============================================
+
+Table optimization_requests {
+  id int [pk, increment]
+  building_id int [ref: > offices.id, not null]
+  planning_horizon_start date [not null, note: 'Początek horyzontu planowania']
+  planning_horizon_end date [not null, note: 'Koniec horyzontu planowania']
+  initial_inventory decimal(10,2) [not null, note: 'I_0 - stan magazynu na początku']
+  total_cost decimal(12,2) [note: 'Całkowity koszt obliczony przez solver']
+  solver_status varchar(50) [note: 'Status solvera: OPTIMAL, INFEASIBLE, etc.']
+  solve_time_ms int [note: 'Czas rozwiązywania [ms]']
+  is_correction_mode boolean [default: false, note: 'Czy tryb korekty istniejących zamówień']
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    building_id
+    planning_horizon_start
+    created_at
+  }
+}
+
+Table orders {
+  id int [pk, increment]
+  optimization_request_id int [ref: > optimization_requests.id, not null]
+  distributor_id int [ref: > distributors.id, not null]
+  building_id int [ref: > offices.id, not null]
+  order_date date [not null, note: 'Dzień złożenia zamówienia t']
+  delivery_date date [not null, note: 'Dzień dostawy (t + L_{d,b})']
+  quantity_kg decimal(10,2) [not null, note: 'x_{d,b,t} - zamówiona ilość [kg]']
+  unit_price decimal(10,2) [not null, note: 'Cena jednostkowa [PLN/kg]']
+  discount_tier_id int [ref: > discount_tiers.id]
+  transport_cost decimal(10,2) [not null, note: 'Koszt transportu [PLN]']
+  total_cost decimal(12,2) [not null, note: 'Łączny koszt zamówienia [PLN]']
+  status varchar(50) [default: 'planned', note: 'planned/confirmed/delivered/cancelled']
+  created_at timestamp [default: `now()`]
+  updated_at timestamp
+  
+  indexes {
+    (distributor_id, building_id, order_date)
+    optimization_request_id
+    status
+    order_date
+  }
+}
+
+Table order_corrections {
+  id int [pk, increment]
+  original_order_id int [ref: > orders.id, not null]
+  optimization_request_id int [ref: > optimization_requests.id, not null]
+  correction_date timestamp [default: `now()`]
+  quantity_increase decimal(10,2) [default: 0, note: 'r^+_{d,b,t} - zwiększenie zamówienia [kg]']
+  quantity_decrease decimal(10,2) [default: 0, note: 'r^-_{d,b,t} - zmniejszenie zamówienia [kg]']
+  correction_cost decimal(10,2) [not null, note: 'Koszt korekty [PLN]']
+  reason text
+  
+  indexes {
+    original_order_id
+    optimization_request_id
+  }
+}
+
+// =============================================
+// STAN MAGAZYNU
+// =============================================
+
+Table inventory_snapshots {
+  id int [pk, increment]
+  building_id int [ref: > offices.id, not null]
+  optimization_request_id int [ref: > optimization_requests.id]
+  date date [not null, note: 'Dzień t']
+  inventory_level decimal(10,2) [not null, note: 'I_{b,t} - stan magazynu na koniec dnia [kg]']
+  demand_fulfilled decimal(10,2) [note: 'Zaspokojone zapotrzebowanie [kg]']
+  loss_amount decimal(10,2) [note: 'Strata dzienna [kg]']
+  deliveries_received decimal(10,2) [note: 'Suma dostaw otrzymanych [kg]']
+  is_projected boolean [default: true, note: 'true = prognoza, false = rzeczywisty stan']
+  created_at timestamp [default: `now()`]
+  
+  indexes {
+    (building_id, date, optimization_request_id)
+    optimization_request_id
+  }
+}
+
+// =============================================
+// TABELE POMOCNICZE
+// =============================================
+
+Table system_parameters {
+  id int [pk, increment]
+  parameter_name varchar(100) [unique, not null]
+  parameter_value varchar(255) [not null]
+  description text
+  updated_at timestamp [default: `now()`]
+}
