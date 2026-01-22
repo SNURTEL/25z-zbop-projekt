@@ -368,12 +368,17 @@ r^{-}_{d,b,t,l} &\ge 0,
 % =============================================
 \section{Aplikacja}
 
-(Sekcja w przygotowaniu - miejsce przeznaczone na opis interfejsu użytkownika i funkcjonalności aplikacji webowej).
+\subsection{Implementacja}
+Aplikacja została zaimplementowana używając następujących technologi:
+\begin{itemize}
+    \item Python: Implementacja modelu z użyciem paczki docplex, implementacja api z użyciem fastapi, oraz połączenia do bazy z użyciem sqlalchemy ORM
+    \item Typescript, React: W celu napisania interfejsu użytkownika
+    \item Docker/Docker compose: W celu łatwego uruchomienia lokalnego aplikacji wraz z bazą danych
+\end{itemize}
 
-\vspace{10cm}
-\begin{center}
-    \textit{[Miejsce na zrzuty ekranu aplikacji]}
-\end{center}
+Aktualna aplikacja nie jest w pełni działającym systemem produkcyjnym a raczej została stworzona w celu pokazania potencjału projektu. Aby uruchomić aplikację należy w folderze code wywołać komendę \texttt{docker compose up} następnie w celu załadowania przykładowych danych do bazy należy wywołać \texttt{docker compose exec back python seed_database.py}. Po uruchomieniu aplikacji możemy zaobserwować portal użytkownika oraz wendora.
+
+Demo aplikacji znajduje się pod linkiem: \href{https://wutwaw-my.sharepoint.com/personal/01143574_pw_edu_pl/_layouts/15/stream.aspx?id=\%2Fpersonal\%2F01143574\%5Fpw\%5Fedu\%5Fpl\%2FDocuments\%2FZBOP25Z%5FKawa\%2FZBOP%5Fdemo\%5Ffinal\%2Emp4&nav=eyJyZWZlcnJhbEluZm8iOnsicmVmZXJyYWxBcHAiOiJPbmVEcml2ZUZvckJ1c2luZXNzIiwicmVmZXJyYWxBcHBQbGF0Zm9ybSI6IldlYiIsInJlZmVycmFsTW9kZSI6InZpZXciLCJyZWZlcnJhbFZpZXciOiJNeUZpbGVzTGlua0NvcHkifX0&ga=1&referrer=StreamWebApp\%2EWeb&referrerScenario=AddressBarCopied\%2Eview\%2Ed9207197\%2D6663\%2D4209\%2D9ef8\%2Dea65bcb9c12d}{demo link} 
 
 % =============================================
 % TESTS
